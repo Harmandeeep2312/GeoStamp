@@ -1,0 +1,73 @@
+.hero-layout {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: center;
+    gap: 80px;
+    min-height: calc(100vh - 64px);
+}
+.HeroSection-text {
+    max-width: 720px;
+}
+.HeroSection-text h1 {
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1.08;
+}
+.HeroSection-text h3 {
+    font-size: 40px;
+    color: #22d3ee;
+    margin: 20px 0;
+    text-shadow: 0 0 30px rgba(34, 211, 238, 0.6);
+}
+.HeroSection-text p {
+    color: #94a3b8;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 560px;
+}
+.hero-actions {
+    display: flex;
+    gap: 22px;
+    margin-top: 40px;
+}
+.hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 34px;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    border: 1px solid transparent;
+}
+.hero-btn svg {
+    font-size: 20px;
+}
+.hero-btn.primary {
+    background: #22d3ee;
+    color: #020617;
+    box-shadow: 0 0 40px rgba(34, 211, 238, 0.8);
+}
+.hero-btn.secondary {
+    background: transparent;
+    color: #22d3ee;
+    border: 1.5px solid #22d3ee;
+}
+.hero-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 50px rgba(34, 211, 238, 0.9);
+}
+.HeroSection-Visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.geofence-status {
+    margin-top: 18px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #94a3b8;
+}
