@@ -51,7 +51,6 @@ const AuthBox = () => {
       return;
     }
 
-    // If Supabase returned a session, the user is already signed in
     if (data?.session) {
       setForm({ name: "", email: "", password: "" });
       setLoadingSignUp(false);
@@ -59,8 +58,6 @@ const AuthBox = () => {
       return;
     }
 
-    // Some Supabase configurations don't create an immediate session on signUp
-    // Try signing in immediately (useful when email confirmations are disabled)
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
@@ -72,7 +69,6 @@ const AuthBox = () => {
       return;
     }
 
-    // Signed in successfully
     setForm({ name: "", email: "", password: "" });
     setLoadingSignUp(false);
     navigatee(redirectTo);

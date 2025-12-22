@@ -1,5 +1,4 @@
 function EventSummaryCard({ event, isLive, userTZ }) {
-    // parse timestamps and assume UTC if timezone missing
     const parseISODate = (s) => {
         if (!s) return null;
         const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);

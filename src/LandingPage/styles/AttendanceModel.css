@@ -42,13 +42,11 @@
   font-weight: 600;
 }
 
-/* Input + button container */
 .manual-input-row {
   display: flex;
   gap: 12px;
 }
 
-/* Input field */
 .manual-input-row input {
   flex: 1;
   height: 48px;
@@ -65,7 +63,6 @@
   color: rgba(229, 250, 255, 0.5);
 }
 
-/* Button */
 .manual-submit-btn {
   height: 48px;
   padding: 0 22px;

@@ -39,7 +39,6 @@ import AppNavbar from "../Components/AppNavbarr";
     );
 
     return () => {
-        // defensive: unsubscribe only if listener and subscription exist
         listener?.subscription?.unsubscribe();
     };
     }, []);

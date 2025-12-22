@@ -67,7 +67,6 @@ function EventsCreationPopUp({ open, onClose }) {
         `${formData.endDate}T${formData.endTime}`
         ).toISOString();
 
-        // 1️⃣ Create event
         const { data: event, error } = await supabase
         .from("events")
         .insert({
@@ -89,7 +88,6 @@ function EventsCreationPopUp({ open, onClose }) {
         return;
         }
 
-        // 2️⃣ OPTIONAL: Insert participants
         if (participants.length > 0) {
         const payload = participants.map((p) => ({
             event_id: event.id,

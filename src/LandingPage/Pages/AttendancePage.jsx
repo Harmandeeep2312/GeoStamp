@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
 
 import EventSummaryCard from "../Components/EventSummaryCard";
@@ -19,7 +19,6 @@ function AttendancePage() {
         const existing = localStorage.getItem("device_id");
         if (existing) return existing;
 
-        // Prefer secure random UUID when available, otherwise fallback to a stable generated id
         let id;
         if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
         try {
@@ -30,7 +29,6 @@ function AttendancePage() {
         }
 
         if (!id) {
-        // fallback id: timestamp + random
         id = `dm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
         }
 
@@ -44,7 +42,6 @@ function AttendancePage() {
 
     const fetchEventAndStatus = async () => {
         try {
-        // 1️⃣ Fetch event
         const { data: eventData, error } = await supabase
             .from("events")
             .select("*")
@@ -59,7 +56,6 @@ function AttendancePage() {
 
         setEvent(eventData);
 
-        // 2️⃣ Check if attendance already marked
         const { data: attendance, error: attendanceError } = await supabase
             .from("attendance")
             .select("id")
@@ -91,6 +87,20 @@ function AttendancePage() {
         setAttendanceMarked(true);
     };
 
+    const actionRef = useRef(null);
+    const location = useLocation();
+    const cameFromScanner = location.state?.fromScanner;
+
+    useEffect(() => {
+        if (!loading && cameFromScanner) {
+        setTimeout(() => {
+            actionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            const btn = actionRef.current?.querySelector(".primary-btn");
+            if (btn) btn.focus();
+        }, 120);
+        }
+    }, [loading, cameFromScanner]);
+
     if (loading) return <p className="loading-text">Loading attendance...</p>;
     if (!event)
     return (
@@ -101,7 +111,6 @@ function AttendancePage() {
         </div>
     );
 
-    // Helper: parse ISO timestamps and assume UTC when timezone is missing
     const parseISODate = (s) => {
         if (!s) return null;
         const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
@@ -122,12 +131,14 @@ function AttendancePage() {
         <div className="attendance-main">
             <GeoFenceCard event={event} />
 
+            <div ref={actionRef}>
             <AttendanceActionCard
-            attendanceMarked={attendanceMarked}
-            isLive={isLive}
-            onMark={handleMarkAttendance}
-            onViewEvents={() => (window.location.href = "/")}
+                attendanceMarked={attendanceMarked}
+                isLive={isLive}
+                onMark={handleMarkAttendance}
+                onViewEvents={() => (window.location.href = "/")}
             />
+            </div>
         </div>
 
         <DeviceInfo deviceId={deviceId} />
