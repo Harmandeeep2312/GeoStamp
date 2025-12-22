@@ -1,98 +1,153 @@
-    import { Html5QrcodeScanner } from "html5-qrcode";
-    import { useEffect, useRef, useState } from "react";
-    import { useNavigate } from "react-router-dom";
-import { supabase } from "../../Supabase/supabase-client";
+    import { useEffect, useState } from "react";
+    import { useParams, useNavigate } from "react-router-dom";
+    import { supabase } from "../../Supabase/supabase-client";
 
-function QrScanner({ onClose }) {
+    import EventSummaryCard from "../Components/EventSummaryCard";
+    import GeoFenceCard from "../Components/GeofenceCard";
+    import AttendanceActionCard from "../Components/AttendanceActionCard";
+    import "../styles/AttendancePage.css";
+
+    function AttendancePage() {
+    const { eventId } = useParams();
     const navigate = useNavigate();
-    const scannerRef = useRef(null);
-    const hasScannedRef = useRef(false);
-    const [decodedText, setDecodedText] = useState("");
-    const [parsedEventId, setParsedEventId] = useState(null);
-    const [scanError, setScanError] = useState(null);
 
+    const [session, setSession] = useState(null);
+    const [authChecked, setAuthChecked] = useState(false);
+
+    const [event, setEvent] = useState(null);
+    const [isRegistered, setIsRegistered] = useState(false);
+    const [attendanceMarked, setAttendanceMarked] = useState(false);
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    /* ---------------- AUTH ---------------- */
     useEffect(() => {
-        if (scannerRef.current) return;
+        supabase.auth.getSession().then(({ data }) => {
+        setSession(data?.session ?? null);
+        setAuthChecked(true);
+        });
+    }, []);
 
-        const scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: 250 },
-        false
-        );
+    /* -------- REDIRECT IF NOT LOGGED IN -------- */
+    useEffect(() => {
+        if (!authChecked) return;
 
-        scannerRef.current = scanner;
-
-        scanner.render(
-        (text) => {
-            if (hasScannedRef.current) return;
-
-            const normalized = String(text || "").replace(/\s+/g, "");
-            const match = normalized.match(/attendance\/([A-Za-z0-9-]+)/i);
-
-            if (!match) {
-            setScanError("Invalid QR code");
-            return;
-            }
-
-            const eventId = match[1];
-            hasScannedRef.current = true;
-
-            setDecodedText(text);
-            setParsedEventId(eventId);
-            setScanError(null);
-
-            // stop camera safely
-            scanner
-            .clear()
-            .catch(() => {});
-
-            // Decide where to send the user based on auth
-            (async () => {
-            try {
-                const { data } = await supabase.auth.getSession();
-                const session = data?.session ?? null;
-
-                if (!session) {
-                // redirect to signup and pass where to go after auth
-                navigate(`/signup`, { state: { redirectTo: `/attendance/${eventId}` } });
-                return;
-                }
-
-                // already authenticated
-                navigate(`/attendance/${eventId}`);
-            } catch (e) {
-                console.error("Error checking session after scan:", e);
-                navigate(`/attendance/${eventId}`);
-            }
-            })();
-        },
-        (error) => {
-            setScanError(String(error || "scan_error"));
+        if (!session) {
+        navigate(`/signup?redirect=/attendance/${eventId}`, { replace: true });
         }
-        );
+    }, [authChecked, session, eventId, navigate]);
 
-        return () => {
-        scanner.clear().catch(() => {});
-        };
-    }, [navigate]);
+    /* ---------------- LOAD EVENT ---------------- */
+    useEffect(() => {
+        if (!eventId) return;
+
+        supabase
+        .from("events")
+        .select("*")
+        .eq("id", eventId)
+        .single()
+        .then(({ data, error }) => {
+            if (error || !data) {
+            setError("Event not found");
+            } else {
+            setEvent(data);
+            }
+            setLoading(false);
+        });
+    }, [eventId]);
+
+    /* -------- CHECK REGISTRATION & ATTENDANCE -------- */
+    useEffect(() => {
+        if (!session || !eventId) return;
+
+        const email = session.user.email;
+        const userId = session.user.id;
+
+        supabase
+        .from("event_participants")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("email", email)
+        .maybeSingle()
+        .then(({ data }) => setIsRegistered(!!data));
+
+        supabase
+        .from("attendance")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("user_id", userId)
+        .maybeSingle()
+        .then(({ data }) => setAttendanceMarked(!!data));
+    }, [session, eventId]);
+
+    /* ---------------- MARK ATTENDANCE ---------------- */
+    const handleMarkAttendance = async () => {
+        if (!isRegistered) {
+        alert("You are not registered for this event");
+        return;
+        }
+
+        if (attendanceMarked) {
+        alert("Attendance already marked");
+        return;
+        }
+
+        const { error } = await supabase.from("attendance").insert({
+        event_id: eventId,
+        user_id: session.user.id,
+        });
+
+        if (error) {
+        alert("Failed to mark attendance");
+        return;
+        }
+
+        setAttendanceMarked(true);
+    };
+
+    /* ---------------- RENDER ---------------- */
+
+    if (!authChecked || loading) {
+        return <p className="loading-text">Loading attendance…</p>;
+    }
+
+    if (error) {
+        return (
+        <div className="card error-text">
+            <h3>Error</h3>
+            <p>{error}</p>
+        </div>
+        );
+    }
+
+    if (!event) return null;
+
+    const parseISO = (s) => new Date(s.endsWith("Z") ? s : s + "Z");
+    const isLive =
+        new Date() >= parseISO(event.start_time) &&
+        new Date() <= parseISO(event.end_time);
 
     return (
-        <div className="qr-box">
-        <div id="qr-reader" />
+        <div className="attendance-page">
+        <EventSummaryCard event={event} isLive={isLive} />
 
-        {scanError && (
-            <div style={{ marginTop: 12, color: "salmon", fontSize: 14 }}>
-            {scanError}
-            </div>
-        )}
+        <div className="attendance-main">
+            <GeoFenceCard event={event} />
 
-        {parsedEventId && (
-            <div style={{ marginTop: 8, fontSize: 12 }}>
-            Event ID: <strong>{parsedEventId}</strong>
-            </div>
-        )}
+            <AttendanceActionCard
+            attendanceMarked={attendanceMarked}
+            isLive={isLive}
+            onMark={handleMarkAttendance}
+            onViewEvents={() => navigate("/")}
+            />
+
+            {!isRegistered && (
+            <p className="warning">You are not registered for this event</p>
+            )}
+        </div>
         </div>
     );
     }
 
-    export default QrScanner;
+    export default AttendancePage;

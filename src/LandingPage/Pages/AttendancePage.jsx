@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
 
 import EventSummaryCard from "../Components/EventSummaryCard";
@@ -9,9 +9,10 @@ import "../styles/AttendancePage.css";
 
 function AttendancePage() {
   const { eventId } = useParams();
+  const navigate = useNavigate();
 
   const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const [event, setEvent] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
@@ -20,28 +21,15 @@ function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ======================
-     AUTH
-     ====================== */
+  /* ---------------- AUTH (NON-BLOCKING) ---------------- */
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data?.session ?? null);
-      setAuthLoading(false);
+      setAuthChecked(true);
     });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session ?? null);
-        setAuthLoading(false);
-      }
-    );
-
-    return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  /* ======================
-     LOAD EVENT
-     ====================== */
+  /* ---------------- LOAD EVENT (PUBLIC) ---------------- */
   useEffect(() => {
     if (!eventId) {
       setError("Invalid event link");
@@ -56,7 +44,7 @@ function AttendancePage() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) {
-          setError("Event not found");
+          setError("Event not found or expired");
         } else {
           setEvent(data);
         }
@@ -64,44 +52,34 @@ function AttendancePage() {
       });
   }, [eventId]);
 
-  /* ======================
-     CHECK REGISTRATION + ATTENDANCE
-     ====================== */
+  /* ---------------- VALIDATIONS (AFTER LOGIN) ---------------- */
   useEffect(() => {
     if (!session || !eventId) return;
 
     const email = session.user.email;
     const userId = session.user.id;
 
-    // 1. Check if student is registered
     supabase
       .from("event_participants")
       .select("id")
       .eq("event_id", eventId)
       .eq("email", email)
       .maybeSingle()
-      .then(({ data }) => {
-        setIsRegistered(Boolean(data));
-      });
+      .then(({ data }) => setIsRegistered(Boolean(data)));
 
-    // 2. Check if attendance already marked
     supabase
       .from("attendance")
       .select("id")
       .eq("event_id", eventId)
       .eq("user_id", userId)
       .maybeSingle()
-      .then(({ data }) => {
-        setAttendanceMarked(Boolean(data));
-      });
+      .then(({ data }) => setAttendanceMarked(Boolean(data)));
   }, [session, eventId]);
 
-  /* ======================
-     MARK ATTENDANCE
-     ====================== */
+  /* ---------------- MARK ATTENDANCE ---------------- */
   const handleMarkAttendance = async () => {
     if (!session) {
-      window.location.href = `/signup?redirect=${encodeURIComponent(`/attendance/${eventId}`)}`;
+      navigate(`/signup?redirect=/attendance/${eventId}`);
       return;
     }
 
@@ -128,58 +106,30 @@ function AttendancePage() {
     setAttendanceMarked(true);
   };
 
-  /* ======================
-     RENDER STATES
-     ====================== */
-  if (authLoading || loading) {
-    return <p className="loading-text">Loading attendance…</p>;
-  }
+  /* ---------------- RENDER ---------------- */
 
-  // If the user is not authenticated, redirect them to signup immediately
-  if (!session) {
-    window.location.href = `/signup?redirect=${encodeURIComponent(`/attendance/${eventId}`)}`;
-    return null;
+  if (loading) {
+    return <p className="loading-text">Loading event…</p>;
   }
 
   if (error) {
     return (
-      <div className="error-text card">
+      <div className="card error-text">
         <h3>Error</h3>
         <p>{error}</p>
       </div>
     );
   }
 
-  /* ======================
-     EVENT TIME CHECK
-     ====================== */
-
-  if (!event) {
-    return (
-      <div className="error-text card" style={{ maxWidth: 420 }}>
-        <h3>Invalid or expired event</h3>
-        <p>If you scanned a QR, the event ID <code>{eventId}</code> may be incorrect or expired.</p>
-        <button className="secondary-btn" onClick={() => (window.location.href = "/")}>View Events</button>
-      </div>
-    );
-  }
-
-  const parseISODate = (s) => {
-    if (!s) return null;
-    const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
-    return new Date(hasTZ ? s : s + "Z");
-  };
-
-  const start = parseISODate(event.start_time);
-  const end = parseISODate(event.end_time);
-  const now = new Date();
-  const isLive = start && end && now >= start && now <= end;
-
-  const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
+  const parseISO = (s) => new Date(s.endsWith("Z") ? s : s + "Z");
+  const isLive =
+    new Date() >= parseISO(event.start_time) &&
+    new Date() <= parseISO(event.end_time);
 
   return (
     <div className="attendance-page">
-      <EventSummaryCard event={event} isLive={isLive} userTZ={userTZ} />
+      {/* ALWAYS visible */}
+      <EventSummaryCard event={event} isLive={isLive} />
 
       <div className="attendance-main">
         <GeoFenceCard event={event} />
@@ -188,7 +138,7 @@ function AttendancePage() {
           attendanceMarked={attendanceMarked}
           isLive={isLive}
           onMark={handleMarkAttendance}
-          onViewEvents={() => (window.location.href = "/")}
+          onViewEvents={() => navigate("/")}
         />
 
         {!session && (
@@ -196,9 +146,7 @@ function AttendancePage() {
         )}
 
         {session && !isRegistered && (
-          <p className="warning">
-            You are not registered for this event
-          </p>
+          <p className="warning">You are not registered for this event</p>
         )}
       </div>
     </div>
