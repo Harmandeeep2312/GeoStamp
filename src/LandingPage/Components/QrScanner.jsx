@@ -70,17 +70,15 @@ function QrScanner({ onClose }) {
                     await new Promise((r) => setTimeout(r, 700));
 
                     if (!session) {
-                        navigate(`/signup?redirect=/attendance/${eventId}?from=qr`);
-                        if (typeof onClose === "function") onClose();
+                        const redirect = encodeURIComponent(`/attendance/${eventId}?from=qr`);
+                        window.location.href = `${window.location.origin}/signup?redirect=${redirect}`;
                     } else {
-                        navigate(`/attendance/${eventId}?from=qr`, { state: { fromScanner: true } });
-                        if (typeof onClose === "function") onClose();
+                        window.location.href = `${window.location.origin}/attendance/${eventId}?from=qr`;
                     }
                 } catch (e) {
                     setScanError(String(e));
                     await new Promise((r) => setTimeout(r, 700));
-                    navigate(`/attendance/${eventId}`, { state: { fromScanner: true } });
-                    if (typeof onClose === "function") onClose();
+                    window.location.href = `${window.location.origin}/attendance/${eventId}?from=qr`;
                 }
 
                 window.__qr_debug__ = {
