@@ -1,0 +1,112 @@
+.attendance-table-wrapper {
+    margin-top: 28px;
+    padding: 20px;
+    border-radius: 18px;
+    background: linear-gradient(
+        160deg,
+        rgba(15, 23, 42, 0.95),
+        rgba(2, 6, 23, 0.95)
+    );
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+}
+.attendance-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.attendance-table-header h4 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e5faff;
+    letter-spacing: 0.4px;
+}
+.attendance-count {
+    font-size: 13px;
+    color: #7dd3fc;
+    opacity: 0.85;
+}
+.attendance-table-container {
+    overflow-x: auto;
+}
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+}
+.attendance-table thead {
+    background: rgba(34, 211, 238, 0.08);
+}
+.attendance-table th {
+    text-align: left;
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #67e8f9;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    border-bottom: 1px solid rgba(34, 211, 238, 0.25);
+}
+.attendance-table tbody tr {
+    transition: background 0.2s ease;
+}
+.attendance-table tbody tr:hover {
+    background: rgba(34, 211, 238, 0.06);
+}
+.attendance-table td {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: #e5faff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.attendance-name {
+    font-weight: 600;
+    color: #e0f2fe;
+}
+.attendance-email {
+    font-size: 13px;
+    color: #93c5fd;
+}
+.attendance-roll {
+    font-size: 13px;
+    color: #7dd3fc;
+}
+.attendance-time {
+    font-size: 12px;
+    color: #a5f3fc;
+    white-space: nowrap;
+}
+.attendance-empty {
+    text-align: center;
+    padding: 24px;
+    font-size: 14px;
+    color: #7dd3fc;
+    opacity: 0.7;
+}
+.download-btn {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #021017;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.65);
+}
+@media (max-width: 768px) {
+    .attendance-table-wrapper {
+        padding: 16px;
+    }
+
+    .attendance-table th,
+    .attendance-table td {
+        padding: 12px;
+    }
+}

@@ -1,0 +1,80 @@
+.attendance-page {
+    min-height: 100vh;
+    background:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+        radial-gradient(circle at top, rgba(0,255,255,0.08), transparent 40%),
+        #020617;
+    background-size: 40px 40px;
+    color: #e5faff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 20px;
+}
+
+.attendance-main {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    width: 100%;
+    max-width: 420px;
+}
+
+.card {
+    background: linear-gradient(
+    160deg,
+    rgba(15, 23, 42, 0.95),
+    rgba(2, 6, 23, 0.95)
+    );
+    border-radius: 18px;
+    padding: 22px;
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    box-shadow: 0 0 32px rgba(0,0,0,0.6);
+}
+
+.event-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #22c55e;
+}
+
+.dot.live {
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #22c55e;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #021017;
+    border: none;
+    padding: 14px;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 24px rgba(34,211,238,0.45);
+}
+
+.secondary-btn {
+    background: transparent;
+    border: 1px solid #22d3ee;
+    color: #22d3ee;
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.warning {
+    color: #facc15;
+    font-size: 13px;
+}
+
+.device-info {
+    margin-top: 18px;
+    font-size: 11px;
+    opacity: 0.6;
+}

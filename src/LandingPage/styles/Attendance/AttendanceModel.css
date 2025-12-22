@@ -1,0 +1,87 @@
+.attendance-modal {
+    background: radial-gradient(circle at top, #020617, #000);
+    padding: 24px;
+  }
+  
+  .attendance-title {
+    font-weight: 700;
+    color: #e5faff;
+  }
+  
+  .scan-section {
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+  }
+  
+  .scan-section h3 {
+    margin-bottom: 12px;
+    color: #7dd3fc;
+  }
+  
+  .qr-camera-box {
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  
+  .divider {
+    margin: 20px 0;
+    text-align: center;
+    color: #7dd3fc;
+    font-weight: 600;
+  }
+  .manual-entry {
+    margin-top: 12px;
+  }
+  
+  .manual-entry h3 {
+    margin-bottom: 10px;
+    color: #7dd3fc;
+    font-weight: 600;
+  }
+  
+  /* Input + button container */
+  .manual-input-row {
+    display: flex;
+    gap: 12px;
+  }
+  
+  /* Input field */
+  .manual-input-row input {
+    flex: 1;
+    height: 48px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    background: rgba(2, 6, 23, 0.9);
+    color: #e5faff;
+    font-size: 14px;
+    outline: none;
+  }
+  
+  .manual-input-row input::placeholder {
+    color: rgba(229, 250, 255, 0.5);
+  }
+  
+  /* Button */
+  .manual-submit-btn {
+    height: 48px;
+    padding: 0 22px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #021017;
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .manual-submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 32px rgba(34, 211, 238, 0.7);
+  }
+  
