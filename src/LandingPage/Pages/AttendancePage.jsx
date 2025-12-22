@@ -1,22 +1,47 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
+
+import EventSummaryCard from "../Components/EventSummaryCard";
+import GeoFenceCard from "../Components/GeofenceCard";
+import AttendanceActionCard from "../Components/AttendanceActionCard";
 import "../styles/AttendancePage.css";
 
 function AttendancePage() {
   const { eventId } = useParams();
 
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [event, setEvent] = useState(null);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [name, setName] = useState("");
-  const [rollNo, setRollNo] = useState("");
-  const [status, setStatus] = useState("");
+  /* ======================
+     AUTH
+     ====================== */
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data?.session ?? null);
+      setAuthLoading(false);
+    });
 
-  /* =====================
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session ?? null);
+        setAuthLoading(false);
+      }
+    );
+
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
+
+  /* ======================
      LOAD EVENT
-     ===================== */
+     ====================== */
   useEffect(() => {
     if (!eventId) {
       setError("Invalid event link");
@@ -31,7 +56,7 @@ function AttendancePage() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) {
-          setError("Event not found or expired");
+          setError("Event not found");
         } else {
           setEvent(data);
         }
@@ -39,104 +64,117 @@ function AttendancePage() {
       });
   }, [eventId]);
 
-  /* =====================
-     MARK ATTENDANCE
-     ===================== */
-  const handleSubmit = async () => {
-    setStatus("");
+  /* ======================
+     CHECK REGISTRATION + ATTENDANCE
+     ====================== */
+  useEffect(() => {
+    if (!session || !eventId) return;
 
-    if (!name || !rollNo) {
-      setStatus("Please fill all fields");
-      return;
-    }
+    const email = session.user.email;
+    const userId = session.user.id;
 
-    // 1️⃣ Check participant registration
-    const { data: participant } = await supabase
+    // 1. Check if student is registered
+    supabase
       .from("event_participants")
       .select("id")
       .eq("event_id", eventId)
-      .eq("name", name)
-      .eq("roll_no", rollNo)
-      .maybeSingle();
+      .eq("email", email)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsRegistered(Boolean(data));
+      });
 
-    if (!participant) {
-      setStatus("You are not registered for this event");
-      return;
-    }
-
-    // 2️⃣ Check if attendance already marked
-    const { data: existing } = await supabase
+    // 2. Check if attendance already marked
+    supabase
       .from("attendance")
       .select("id")
       .eq("event_id", eventId)
-      .eq("roll_no", rollNo)
-      .maybeSingle();
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setAttendanceMarked(Boolean(data));
+      });
+  }, [session, eventId]);
 
-    if (existing) {
-      setStatus("Attendance already marked");
+  /* ======================
+     MARK ATTENDANCE
+     ====================== */
+  const handleMarkAttendance = async () => {
+    if (!session) {
+      window.location.href = "/signup";
       return;
     }
 
-    // 3️⃣ Insert attendance
+    if (!isRegistered) {
+      alert("You are not registered for this event");
+      return;
+    }
+
+    if (attendanceMarked) {
+      alert("Attendance already marked");
+      return;
+    }
+
     const { error } = await supabase.from("attendance").insert({
       event_id: eventId,
-      name,
-      roll_no: rollNo,
+      user_id: session.user.id,
     });
 
     if (error) {
-      setStatus("Failed to mark attendance");
+      alert("Failed to mark attendance");
       return;
     }
 
-    setStatus("✅ Attendance marked successfully");
-    setName("");
-    setRollNo("");
+    setAttendanceMarked(true);
   };
 
-  /* =====================
+  /* ======================
      RENDER STATES
-     ===================== */
-  if (loading) return <p className="loading-text">Loading attendance...</p>;
+     ====================== */
+  if (authLoading || loading) {
+    return <p className="loading-text">Loading attendance…</p>;
+  }
 
   if (error) {
     return (
-      <div className="card error-text">
+      <div className="error-text card">
         <h3>Error</h3>
         <p>{error}</p>
       </div>
     );
   }
 
+  /* ======================
+     EVENT TIME CHECK
+     ====================== */
+  const now = new Date();
+  const start = new Date(event.start_time);
+  const end = new Date(event.end_time);
+  const isLive = now >= start && now <= end;
+
   return (
     <div className="attendance-page">
-      <div className="card">
-        <h2>{event.title}</h2>
-        <p>{event.description}</p>
-      </div>
+      <EventSummaryCard event={event} isLive={isLive} />
 
-      <div className="card">
-        <h3>Mark Attendance</h3>
+      <div className="attendance-main">
+        <GeoFenceCard event={event} />
 
-        <input
-          type="text"
-          placeholder="Your Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+        <AttendanceActionCard
+          attendanceMarked={attendanceMarked}
+          isLive={isLive}
+          onMark={handleMarkAttendance}
+          onViewEvents={() => (window.location.href = "/")}
         />
 
-        <input
-          type="text"
-          placeholder="Roll Number"
-          value={rollNo}
-          onChange={(e) => setRollNo(e.target.value)}
-        />
+        {!session && (
+          <p className="warning">Please sign in to mark attendance</p>
+        )}
 
-        <button className="primary-btn" onClick={handleSubmit}>
-          MARK ATTENDANCE
-        </button>
-
-        {status && <p className="warning">{status}</p>}
+        {session && !isRegistered && (
+          <p className="warning">
+            You are not registered for this event
+          </p>
+        )}
       </div>
     </div>
   );
