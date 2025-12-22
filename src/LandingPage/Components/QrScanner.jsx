@@ -22,27 +22,38 @@ function QrScanner() {
             async (decodedText) => {
                 if (scanned) return; // ignore duplicate callbacks
 
-                // Try to extract eventId from multiple possible QR payloads
+                // Pre-normalize the decoded text: strip any /index.html, hash fragments, and trailing slashes
                 let eventId = null;
-
+                let text = decodedText;
                 try {
+                    // Remove '/index.html' (and variants like '/index.html#/' or '/index.html/') which Render may append
+                    text = text.replace(/\/index\.html(#\/|#|\/)*/i, "/");
+                    // Trim trailing slashes
+                    text = text.replace(/\/+$/, "");
+
+                    // Log for debugging in case users send payloads that fail
+                    // eslint-disable-next-line no-console
+                    console.debug("QR decoded text:", decodedText, "-> normalized:", text);
+
                     // url like https://site/.../attendance/<id>
-                    const match = decodedText.match(/attendance\/([A-Za-z0-9_-]+)/i);
+                    const match = text.match(/attendance\/([A-Za-z0-9_-]+)/i);
                     if (match) {
                         eventId = match[1];
                     } else {
                         // query param like ?eventId=<id>
-                        const qp = decodedText.match(/[?&]eventId=([A-Za-z0-9_-]+)/i);
+                        const qp = text.match(/[?&]eventId=([A-Za-z0-9_-]+)/i);
                         if (qp) eventId = qp[1];
                         else {
                             // plain UUID-ish or token
-                            const uuid = decodedText.match(/[0-9a-fA-F-]{36}/);
+                            const uuid = text.match(/[0-9a-fA-F-]{36}/);
                             if (uuid) eventId = uuid[0];
-                            else if (/^[A-Za-z0-9_-]{6,}$/i.test(decodedText)) eventId = decodedText.trim();
+                            else if (/^[A-Za-z0-9_-]{6,}$/i.test(text)) eventId = text.trim();
                         }
                     }
                 } catch (e) {
                     // ignore parse errors
+                    // eslint-disable-next-line no-console
+                    console.warn("Failed to parse QR text:", decodedText, e);
                 }
 
                 if (!eventId) return;
