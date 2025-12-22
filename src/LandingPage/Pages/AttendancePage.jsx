@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
 
 import EventSummaryCard from "../Components/EventSummaryCard";
@@ -8,220 +8,235 @@ import AttendanceActionCard from "../Components/AttendanceActionCard";
 import DeviceInfo from "../Components/DeviceInfo";
 import "../styles/AttendancePage.css";
 
+/* ======================
+   SAFE DEVICE ID (NO RENDER-TIME STORAGE)
+   ====================== */
+const generateDeviceId = () => {
+  try {
+    const existing = localStorage.getItem("device_id");
+    if (existing) return existing;
+
+    const id =
+      crypto?.randomUUID?.() ||
+      `dm-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 10)}`;
+
+    localStorage.setItem("device_id", id);
+    return id;
+  } catch {
+    // mobile / private mode fallback
+    return `dm-temp-${Date.now()}`;
+  }
+};
+
 function AttendancePage() {
-    const { eventId } = useParams();
+  const { eventId } = useParams();
 
-    const [event, setEvent] = useState(null);
-    const [attendanceMarked, setAttendanceMarked] = useState(false);
-    const [loading, setLoading] = useState(true);
+  const [deviceId, setDeviceId] = useState(null);
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-    const [session, setSession] = useState(null);
-    const [authLoading, setAuthLoading] = useState(true);
+  const [event, setEvent] = useState(null);
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-    useEffect(() => {
-      supabase.auth.getSession().then(({ data }) => {
-        setSession(data?.session ?? null);
-        setAuthLoading(false);
-      });
+  const actionRef = useRef(null);
 
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+  /* ======================
+     AUTH (SAFE)
+     ====================== */
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data?.session ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
         setSession(session ?? null);
         setAuthLoading(false);
-      });
+      }
+    );
 
-      return () => {
-        listener?.subscription?.unsubscribe();
-      };
-    }, []);
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
 
-    const deviceId = (() => {
-        const existing = localStorage.getItem("device_id");
-        if (existing) return existing;
+  /* ======================
+     DEVICE ID (AFTER MOUNT)
+     ====================== */
+  useEffect(() => {
+    setDeviceId(generateDeviceId());
+  }, []);
 
-        let id;
-        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-        try {
-            id = crypto.randomUUID();
-        } catch (e) {
-            id = null;
-        }
-        }
+  /* ======================
+     FETCH EVENT (PUBLIC)
+     ====================== */
+  useEffect(() => {
+    let cancelled = false;
 
-        if (!id) {
-        id = `dm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
-        }
+    if (!eventId) {
+      setErrorMsg("Invalid event link");
+      setLoading(false);
+      return;
+    }
 
-        localStorage.setItem("device_id", id);
-        return id;
-    })();
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
 
-    useEffect(() => {
-        let cancelled = false;
+        const { data, error } = await supabase
+          .from("events")
+          .select("*")
+          .eq("id", eventId)
+          .single();
 
-        if (authLoading) {
-          // wait for auth to resolve before fetching
+        if (cancelled) return;
+
+        if (error || !data) {
+          setErrorMsg("Invalid or expired event");
+          setLoading(false);
           return;
         }
 
-        if (!session) {
-        setEvent(null);
-        setAttendanceMarked(false);
+        setEvent(data);
         setLoading(false);
-        return;
-        }
-
-        if (!eventId) {
-        setEvent(null);
-        setAttendanceMarked(false);
+      } catch (e) {
+        if (cancelled) return;
+        setErrorMsg("Failed to load event");
         setLoading(false);
-        return;
-        }
+      }
+    };
 
-        const doFetch = async () => {
-        try {
-            setLoading(true);
+    fetchEvent();
+    return () => (cancelled = true);
+  }, [eventId]);
 
-            const { data: eventData, error } = await supabase
-            .from("events")
-            .select("*")
-            .eq("id", eventId)
-            .single();
+  /* ======================
+     CHECK ATTENDANCE (ONLY IF LOGGED IN)
+     ====================== */
+  useEffect(() => {
+    let cancelled = false;
 
-            if (cancelled) return;
+    if (!session || !deviceId || !eventId) return;
 
-            if (error || !eventData) {
-            console.error("Error fetching event:", error);
-            setEvent(null);
-            setLoading(false);
-            return;
-            }
+    const checkAttendance = async () => {
+      const { data } = await supabase
+        .from("attendance")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("device_id", deviceId)
+        .maybeSingle();
 
-            setEvent(eventData);
+      if (!cancelled) {
+        setAttendanceMarked(Boolean(data));
+      }
+    };
 
-            const { data: attendance, error: attendanceError } = await supabase
-            .from("attendance")
-            .select("id")
-            .eq("event_id", eventId)
-            .eq("device_id", deviceId)
-            .maybeSingle();
+    checkAttendance();
+    return () => (cancelled = true);
+  }, [session, deviceId, eventId]);
 
-            if (cancelled) return;
+  /* ======================
+     MARK ATTENDANCE
+     ====================== */
+  const handleMarkAttendance = async () => {
+    if (!session) {
+      window.location.href = "/signup";
+      return;
+    }
 
-            if (attendanceError) console.error("Error checking attendance:", attendanceError);
+    const { error } = await supabase.from("attendance").insert({
+      event_id: event.id,
+      device_id: deviceId,
+    });
 
-            setAttendanceMarked(!!attendance);
-            setLoading(false);
-        } catch (e) {
-            if (cancelled) return;
-            console.error("Unexpected error in fetchEventAndStatus:", e);
-            setLoading(false);
-        }
-        };
+    if (error) {
+      alert("Attendance already marked or not allowed");
+      return;
+    }
 
-        doFetch();
+    setAttendanceMarked(true);
+  };
 
-        return () => {
-        cancelled = true;
-        };
-    }, [eventId, deviceId, session, authLoading]);
-
-    const handleMarkAttendance = async () => {
-        const { error } = await supabase.from("attendance").insert({
-        event_id: event.id,
-        device_id: deviceId,
+  /* ======================
+     AUTO SCROLL
+     ====================== */
+  useEffect(() => {
+    if (!loading && actionRef.current) {
+      setTimeout(() => {
+        actionRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
         });
+      }, 150);
+    }
+  }, [loading]);
 
-        if (error) {
-        alert("Attendance already marked");
-        return;
-        }
+  /* ======================
+     RENDER STATES (NEVER BLANK)
+     ====================== */
+  if (authLoading || !deviceId) {
+    return <p className="loading-text">Preparing attendance…</p>;
+  }
 
-        setAttendanceMarked(true);
-    };
+  if (loading) {
+    return <p className="loading-text">Loading event…</p>;
+  }
 
-    const actionRef = useRef(null);
-    const location = useLocation();
-    const qp = new URLSearchParams(location.search).get("from");
-    const isMobile = typeof navigator !== "undefined" && /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const noReferrer = typeof document !== "undefined" && !document.referrer;
-    const cameFromScanner = location.state?.fromScanner || qp === "qr" || (isMobile && noReferrer);
-
-    const [highlightAction, setHighlightAction] = useState(false);
-
-    useEffect(() => {
-        if (!loading && cameFromScanner) {
-        setTimeout(() => {
-            actionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-            const btn = actionRef.current?.querySelector(".primary-btn");
-            if (btn) btn.focus();
-            setHighlightAction(true);
-
-            // remove highlight after a short duration
-            const t = setTimeout(() => setHighlightAction(false), 3500);
-            return () => clearTimeout(t);
-        }, 120);
-        }
-    }, [loading, cameFromScanner]);
-
-    if (authLoading) return <p className="loading-text">Checking authentication…</p>;
-
-    if (!session)
+  if (errorMsg) {
     return (
-        <div className="error-text card" style={{ maxWidth: 420 }}>
-        <h3>Sign in required</h3>
-        <p>Please sign in to mark your attendance.</p>
-        <button
-            className="primary-btn"
-            onClick={() => (window.location.href = `/signup`)}
-        >
-            Sign In
+      <div className="error-text card" style={{ maxWidth: 420 }}>
+        <h3>Error</h3>
+        <p>{errorMsg}</p>
+        <button onClick={() => (window.location.href = "/")}>
+          View Events
         </button>
-        </div>
+      </div>
     );
+  }
 
-    if (loading) return <p className="loading-text">Loading attendance...</p>;
-    if (!event)
-    return (
-        <div className="error-text card" style={{ maxWidth: 420 }}>
-        <h3>Invalid or expired event</h3>
-        <p>If you scanned a QR, the event ID <code>{eventId}</code> may be incorrect or expired.</p>
-        <button className="secondary-btn" onClick={() => (window.location.href = "/")}>View Events</button>
+  /* ======================
+     TIME CHECK
+     ====================== */
+  const parseISODate = (s) => {
+    if (!s) return null;
+    const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
+    return new Date(hasTZ ? s : s + "Z");
+  };
+
+  const startDate = parseISODate(event.start_time);
+  const endDate = parseISODate(event.end_time);
+  const now = new Date();
+  const isLive = startDate && endDate && now >= startDate && now <= endDate;
+
+  const userTZ =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
+
+  /* ======================
+     MAIN UI
+     ====================== */
+  return (
+    <div className="attendance-page">
+      <EventSummaryCard event={event} isLive={isLive} userTZ={userTZ} />
+
+      <div className="attendance-main">
+        <GeoFenceCard event={event} />
+
+        <div ref={actionRef}>
+          <AttendanceActionCard
+            attendanceMarked={attendanceMarked}
+            isLive={isLive}
+            onMark={handleMarkAttendance}
+            onViewEvents={() => (window.location.href = "/")}
+          />
         </div>
-    );
+      </div>
 
-    const parseISODate = (s) => {
-        if (!s) return null;
-        const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
-        return new Date(hasTZ ? s : s + "Z");
-    };
-
-    const startDate = parseISODate(event.start_time);
-    const endDate = parseISODate(event.end_time);
-    const now = new Date();
-    const isLive = startDate && endDate && now >= startDate && now <= endDate;
-
-    const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
-
-    return (
-        <div className="attendance-page">
-        <EventSummaryCard event={event} isLive={isLive} userTZ={userTZ} />
-
-        <div className="attendance-main">
-            <GeoFenceCard event={event} />
-
-            <div ref={actionRef}>
-            <AttendanceActionCard
-                attendanceMarked={attendanceMarked}
-                isLive={isLive}
-                onMark={handleMarkAttendance}
-                onViewEvents={() => (window.location.href = "/")}
-            />
-            </div>
-        </div>
-
-        <DeviceInfo deviceId={deviceId} />
-        </div>
-    );
+      <DeviceInfo deviceId={deviceId} />
+    </div>
+  );
 }
 
 export default AttendancePage;
