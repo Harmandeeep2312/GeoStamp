@@ -101,7 +101,7 @@ function AttendancePage() {
      ====================== */
   const handleMarkAttendance = async () => {
     if (!session) {
-      window.location.href = "/signup";
+      window.location.href = `/signup?redirect=${encodeURIComponent(`/attendance/${eventId}`)}`;
       return;
     }
 
@@ -135,6 +135,12 @@ function AttendancePage() {
     return <p className="loading-text">Loading attendance…</p>;
   }
 
+  // If the user is not authenticated, redirect them to signup immediately
+  if (!session) {
+    window.location.href = `/signup?redirect=${encodeURIComponent(`/attendance/${eventId}`)}`;
+    return null;
+  }
+
   if (error) {
     return (
       <div className="error-text card">
@@ -147,14 +153,33 @@ function AttendancePage() {
   /* ======================
      EVENT TIME CHECK
      ====================== */
+
+  if (!event) {
+    return (
+      <div className="error-text card" style={{ maxWidth: 420 }}>
+        <h3>Invalid or expired event</h3>
+        <p>If you scanned a QR, the event ID <code>{eventId}</code> may be incorrect or expired.</p>
+        <button className="secondary-btn" onClick={() => (window.location.href = "/")}>View Events</button>
+      </div>
+    );
+  }
+
+  const parseISODate = (s) => {
+    if (!s) return null;
+    const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
+    return new Date(hasTZ ? s : s + "Z");
+  };
+
+  const start = parseISODate(event.start_time);
+  const end = parseISODate(event.end_time);
   const now = new Date();
-  const start = new Date(event.start_time);
-  const end = new Date(event.end_time);
-  const isLive = now >= start && now <= end;
+  const isLive = start && end && now >= start && now <= end;
+
+  const userTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
 
   return (
     <div className="attendance-page">
-      <EventSummaryCard event={event} isLive={isLive} />
+      <EventSummaryCard event={event} isLive={isLive} userTZ={userTZ} />
 
       <div className="attendance-main">
         <GeoFenceCard event={event} />

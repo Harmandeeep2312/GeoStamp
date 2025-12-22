@@ -1,13 +1,10 @@
     import { Html5QrcodeScanner } from "html5-qrcode";
     import { useEffect, useRef, useState } from "react";
     import { useNavigate } from "react-router-dom";
+import { supabase } from "../../Supabase/supabase-client";
 
-    function QrScanner({ onClose }) {
+function QrScanner({ onClose }) {
     const navigate = useNavigate();
-    const scannerRef = useRef(null);
-    const hasScannedRef = useRef(false);
-
-    const [decodedText, setDecodedText] = useState("");
     const [parsedEventId, setParsedEventId] = useState(null);
     const [scanError, setScanError] = useState(null);
 
@@ -46,8 +43,25 @@
             .clear()
             .catch(() => {});
 
-            // IMPORTANT: SPA navigation only
-            navigate(`/attendance/${eventId}?from=qr`, { replace: true });
+            // Decide where to send the user based on auth
+            (async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                const session = data?.session ?? null;
+
+                if (!session) {
+                // redirect to signup and pass where to go after auth
+                navigate(`/signup`, { state: { redirectTo: `/attendance/${eventId}` } });
+                return;
+                }
+
+                // already authenticated
+                navigate(`/attendance/${eventId}`);
+            } catch (e) {
+                console.error("Error checking session after scan:", e);
+                navigate(`/attendance/${eventId}`);
+            }
+            })();
         },
         (error) => {
             setScanError(String(error || "scan_error"));
