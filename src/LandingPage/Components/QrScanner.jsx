@@ -1,163 +1,81 @@
-import { Html5QrcodeScanner } from "html5-qrcode";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../../Supabase/supabase-client";
+    import { Html5QrcodeScanner } from "html5-qrcode";
+    import { useEffect, useRef, useState } from "react";
+    import { useNavigate } from "react-router-dom";
 
-function QrScanner({ onClose }) {
+    function QrScanner({ onClose }) {
     const navigate = useNavigate();
+    const scannerRef = useRef(null);
+    const hasScannedRef = useRef(false);
+
     const [decodedText, setDecodedText] = useState("");
     const [parsedEventId, setParsedEventId] = useState(null);
     const [scanError, setScanError] = useState(null);
-    const [sessionPresent, setSessionPresent] = useState(null);
-    const [lastScan, setLastScan] = useState(null);
-    const [debugVisible, setDebugVisible] = useState(() => localStorage.getItem("qr_debug") === "1");
 
     useEffect(() => {
-        let scanned = false;
+        if (scannerRef.current) return;
 
         const scanner = new Html5QrcodeScanner(
-            "qr-reader",
-            {
-                fps: 10,
-                qrbox: 250,
-            },
-            false
+        "qr-reader",
+        { fps: 10, qrbox: 250 },
+        false
         );
 
+        scannerRef.current = scanner;
+
         scanner.render(
-            async (text) => {
-                setDecodedText(text || "");
-                setScanError(null);
-                setLastScan(new Date().toISOString());
+        (text) => {
+            if (hasScannedRef.current) return;
 
-                if (scanned) return;
+            const normalized = String(text || "").replace(/\s+/g, "");
+            const match = normalized.match(/attendance\/([A-Za-z0-9-]+)/i);
 
-                let normalized;
-                try {
-                    normalized = String(text || "").replace(/\s+/g, "");
-                    if (normalized.toLowerCase().includes("index.html")) return;
-                } catch (e) {
-                    setScanError(String(e));
-                    return;
-                }
-
-                let eventId = null;
-                try {
-                    const match = normalized.match(/attendance\/([A-Za-z0-9-]+)/i);
-                    if (match) eventId = match[1];
-                } catch (e) {
-                    setScanError(String(e));
-                }
-                setParsedEventId(eventId || null);
-                setParsedEventId(eventId || null);
-                setDebugVisible(true);
-                localStorage.setItem("qr_debug", "1");
-
-                if (!eventId) return;
-                scanned = true;
-
-                try {
-                    await scanner.clear();
-                } catch (e) {
-                }
-
-                try {
-                    const { data } = await supabase.auth.getSession();
-                    const session = data?.session;
-                    setSessionPresent(!!session);
-
-                    // brief pause so the overlay is visible on mobile before navigation
-                    await new Promise((r) => setTimeout(r, 700));
-
-                    if (!session) {
-                        const redirect = encodeURIComponent(`/attendance/${eventId}?from=qr`);
-                        window.location.href = `${window.location.origin}/signup?redirect=${redirect}`;
-                    } else {
-                        window.location.href = `${window.location.origin}/attendance/${eventId}?from=qr`;
-                    }
-                } catch (e) {
-                    setScanError(String(e));
-                    await new Promise((r) => setTimeout(r, 700));
-                    window.location.href = `${window.location.origin}/attendance/${eventId}?from=qr`;
-                }
-
-                window.__qr_debug__ = {
-                    decodedText: text,
-                    eventId,
-                    lastScan: new Date().toISOString(),
-                    sessionPresent: sessionPresent,
-                    error: scanError,
-                };
-            },
-            (error) => {
-                setScanError(String(error || "scan_error"));
-                setLastScan(new Date().toISOString());
+            if (!match) {
+            setScanError("Invalid QR code");
+            return;
             }
+
+            const eventId = match[1];
+            hasScannedRef.current = true;
+
+            setDecodedText(text);
+            setParsedEventId(eventId);
+            setScanError(null);
+
+            // stop camera safely
+            scanner
+            .clear()
+            .catch(() => {});
+
+            // IMPORTANT: SPA navigation only
+            navigate(`/attendance/${eventId}?from=qr`, { replace: true });
+        },
+        (error) => {
+            setScanError(String(error || "scan_error"));
+        }
         );
 
         return () => {
-            scanner.clear().catch(() => {});
+        scanner.clear().catch(() => {});
         };
-    }, [navigate, onClose, sessionPresent, scanError]);
-
-    const toggleDebug = () => {
-        const next = !debugVisible;
-        setDebugVisible(next);
-        localStorage.setItem("qr_debug", next ? "1" : "0");
-    };
-
-    const copy = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text || "");
-            alert("Copied to clipboard");
-        } catch (e) {
-            alert("Copy failed");
-        }
-    };
+    }, [navigate]);
 
     return (
         <div className="qr-box">
-            <div id="qr-reader" />
+        <div id="qr-reader" />
 
-            <div style={{ position: "fixed", left: 12, bottom: 12, zIndex: 2147483647 }}>
-                <button onClick={toggleDebug} style={{ padding: 8, borderRadius: 8 }}>
-                    {debugVisible ? "Hide QR Debug" : "Show QR Debug"}
-                </button>
+        {scanError && (
+            <div style={{ marginTop: 12, color: "salmon", fontSize: 14 }}>
+            {scanError}
             </div>
+        )}
 
-            {debugVisible && (
-                <div style={{ position: "fixed", left: 12, bottom: 64, zIndex: 2147483647, width: 320, maxWidth: "90vw", background: "rgba(2,6,23,0.95)", color: "#e5faff", border: "1px solid rgba(34,211,238,0.25)", borderRadius: 8, padding: 12, fontSize: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                        <strong>QR Debug</strong>
-                        <small>{lastScan ? new Date(lastScan).toLocaleTimeString() : "—"}</small>
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                        <div style={{ fontWeight: 700 }}>Decoded</div>
-                        <div style={{ wordBreak: "break-all" }}>{decodedText || "—"}</div>
-                        <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
-                            <button onClick={() => copy(decodedText)} style={{ padding: 6, borderRadius: 6 }}>Copy</button>
-                            <button onClick={() => { setDecodedText(""); setParsedEventId(null); setScanError(null); }} style={{ padding: 6, borderRadius: 6 }}>Clear</button>
-                        </div>
-                    </div>
-
-                    <div style={{ marginTop: 10 }}>
-                        <div style={{ fontWeight: 700 }}>Parsed Event ID</div>
-                        <div>{parsedEventId || "—"}</div>
-                    </div>
-
-                    <div style={{ marginTop: 10 }}>
-                        <div style={{ fontWeight: 700 }}>Session</div>
-                        <div>{sessionPresent == null ? "—" : sessionPresent ? "Authenticated" : "No session"}</div>
-                    </div>
-
-                    <div style={{ marginTop: 10 }}>
-                        <div style={{ fontWeight: 700 }}>Last Error</div>
-                        <div style={{ color: "salmon" }}>{scanError || "—"}</div>
-                    </div>
-                </div>
-            )}
+        {parsedEventId && (
+            <div style={{ marginTop: 8, fontSize: 12 }}>
+            Event ID: <strong>{parsedEventId}</strong>
+            </div>
+        )}
         </div>
     );
-}
+    }
 
-export default QrScanner;
+    export default QrScanner;
