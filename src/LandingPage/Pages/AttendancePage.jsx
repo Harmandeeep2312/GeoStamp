@@ -15,6 +15,25 @@ function AttendancePage() {
     const [attendanceMarked, setAttendanceMarked] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    const [session, setSession] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
+    useEffect(() => {
+      supabase.auth.getSession().then(({ data }) => {
+        setSession(data?.session ?? null);
+        setAuthLoading(false);
+      });
+
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session ?? null);
+        setAuthLoading(false);
+      });
+
+      return () => {
+        listener?.subscription?.unsubscribe();
+      };
+    }, []);
+
     const deviceId = (() => {
         const existing = localStorage.getItem("device_id");
         if (existing) return existing;
@@ -38,6 +57,18 @@ function AttendancePage() {
 
     useEffect(() => {
         let cancelled = false;
+
+        if (authLoading) {
+          // wait for auth to resolve before fetching
+          return;
+        }
+
+        if (!session) {
+        setEvent(null);
+        setAttendanceMarked(false);
+        setLoading(false);
+        return;
+        }
 
         if (!eventId) {
         setEvent(null);
@@ -92,7 +123,7 @@ function AttendancePage() {
         return () => {
         cancelled = true;
         };
-    }, [eventId, deviceId]);
+    }, [eventId, deviceId, session, authLoading]);
 
     const handleMarkAttendance = async () => {
         const { error } = await supabase.from("attendance").insert({
@@ -131,6 +162,22 @@ function AttendancePage() {
         }, 120);
         }
     }, [loading, cameFromScanner]);
+
+    if (authLoading) return <p className="loading-text">Checking authentication…</p>;
+
+    if (!session)
+    return (
+        <div className="error-text card" style={{ maxWidth: 420 }}>
+        <h3>Sign in required</h3>
+        <p>Please sign in to mark your attendance.</p>
+        <button
+            className="primary-btn"
+            onClick={() => (window.location.href = `/signup`)}
+        >
+            Sign In
+        </button>
+        </div>
+    );
 
     if (loading) return <p className="loading-text">Loading attendance...</p>;
     if (!event)

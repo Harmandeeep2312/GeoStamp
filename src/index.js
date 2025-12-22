@@ -15,14 +15,7 @@ root.render(
         <Route path='/' element={<LandiingPage />}></Route>
         <Route path='/signup' element={<SignUp />}></Route>
         <Route path='/admin' element={<AdminDashboard />}></Route>
-        <Route
-          path="/attendance/:eventId"
-          element={
-            <ProtectedRoute>
-              <AttendancePage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/attendance/:eventId" element={<AttendancePage />} />
       </Routes>
   </BrowserRouter>
 );
