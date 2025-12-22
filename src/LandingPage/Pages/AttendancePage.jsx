@@ -1,45 +1,27 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
 
 import EventSummaryCard from "../Components/EventSummaryCard";
 import GeoFenceCard from "../Components/GeofenceCard";
 import AttendanceActionCard from "../Components/AttendanceActionCard";
-import DeviceInfo from "../Components/DeviceInfo";
 import "../styles/AttendancePage.css";
-
-/* ======================
-   MOBILE-SAFE DEVICE ID
-   ====================== */
-const generateDeviceId = () => {
-  try {
-    const existing = localStorage.getItem("device_id");
-    if (existing) return existing;
-
-    const id = `dm-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    localStorage.setItem("device_id", id);
-    return id;
-  } catch {
-    return `dm-temp-${Date.now()}`;
-  }
-};
 
 function AttendancePage() {
   const { eventId } = useParams();
 
-  const [deviceId, setDeviceId] = useState(null);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   const [event, setEvent] = useState(null);
+  const [isRegistered, setIsRegistered] = useState(false);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState("");
 
-  const actionRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   /* ======================
-     AUTH (SAFE)
+     AUTH
      ====================== */
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -58,83 +40,61 @@ function AttendancePage() {
   }, []);
 
   /* ======================
-     DEVICE ID (AFTER MOUNT)
+     LOAD EVENT
      ====================== */
   useEffect(() => {
-    setDeviceId(generateDeviceId());
-  }, []);
-
-  /* ======================
-     FETCH EVENT (PUBLIC)
-     ====================== */
-  useEffect(() => {
-    let cancelled = false;
-
     if (!eventId) {
-      setErrorMsg("Invalid event link");
+      setError("Invalid event link");
       setLoading(false);
       return;
     }
 
-    const fetchEvent = async () => {
-      try {
-        setLoading(true);
-
-        const { data, error } = await supabase
-          .from("events")
-          .select("*")
-          .eq("id", eventId)
-          .single();
-
-        if (cancelled) return;
-
+    supabase
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .single()
+      .then(({ data, error }) => {
         if (error || !data) {
-          setErrorMsg("Invalid or expired event");
-          setLoading(false);
-          return;
+          setError("Event not found");
+        } else {
+          setEvent(data);
         }
-
-        setEvent(data);
         setLoading(false);
-      } catch {
-        if (cancelled) return;
-        setErrorMsg("Failed to load event");
-        setLoading(false);
-      }
-    };
-
-    fetchEvent();
-    return () => {
-      cancelled = true;
-    };
+      });
   }, [eventId]);
 
   /* ======================
-     CHECK ATTENDANCE
+     CHECK REGISTRATION + ATTENDANCE
      ====================== */
   useEffect(() => {
-    let cancelled = false;
+    if (!session || !eventId) return;
 
-    if (!session || !deviceId || !eventId) return;
+    const email = session.user.email;
+    const userId = session.user.id;
 
-    const checkAttendance = async () => {
-      const { data } = await supabase
-        .from("attendance")
-        .select("id")
-        .eq("event_id", eventId)
-        .eq("device_id", deviceId)
-        .maybeSingle();
+    // 1. Check if student is registered
+    supabase
+      .from("event_participants")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("email", email)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsRegistered(Boolean(data));
+      });
 
-      if (!cancelled) {
+    // 2. Check if attendance already marked
+    supabase
+      .from("attendance")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
         setAttendanceMarked(Boolean(data));
-      }
-    };
-
-    checkAttendance();
-    return () => {
-      cancelled = true;
-    };
-  }, [session, deviceId, eventId]);
+      });
+  }, [session, eventId]);
 
   /* ======================
      MARK ATTENDANCE
@@ -145,13 +105,23 @@ function AttendancePage() {
       return;
     }
 
+    if (!isRegistered) {
+      alert("You are not registered for this event");
+      return;
+    }
+
+    if (attendanceMarked) {
+      alert("Attendance already marked");
+      return;
+    }
+
     const { error } = await supabase.from("attendance").insert({
-      event_id: event.id,
-      device_id: deviceId,
+      event_id: eventId,
+      user_id: session.user.id,
     });
 
     if (error) {
-      alert("Attendance already marked or not allowed");
+      alert("Failed to mark attendance");
       return;
     }
 
@@ -159,80 +129,53 @@ function AttendancePage() {
   };
 
   /* ======================
-     AUTO SCROLL
-     ====================== */
-  useEffect(() => {
-    if (!loading && actionRef.current) {
-      setTimeout(() => {
-        actionRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 150);
-    }
-  }, [loading]);
-
-  /* ======================
      RENDER STATES
      ====================== */
-  if (authLoading || !deviceId) {
-    return <p className="loading-text">Preparing attendance…</p>;
+  if (authLoading || loading) {
+    return <p className="loading-text">Loading attendance…</p>;
   }
 
-  if (loading) {
-    return <p className="loading-text">Loading event…</p>;
-  }
-
-  if (errorMsg) {
+  if (error) {
     return (
-      <div className="error-text card" style={{ maxWidth: 420 }}>
+      <div className="error-text card">
         <h3>Error</h3>
-        <p>{errorMsg}</p>
-        <button onClick={() => (window.location.href = "/")}>
-          View Events
-        </button>
+        <p>{error}</p>
       </div>
     );
   }
 
   /* ======================
-     TIME CHECK
+     EVENT TIME CHECK
      ====================== */
-  const parseISODate = (s) => {
-    if (!s) return null;
-    const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
-    return new Date(hasTZ ? s : s + "Z");
-  };
-
-  const startDate = parseISODate(event.start_time);
-  const endDate = parseISODate(event.end_time);
   const now = new Date();
-  const isLive = startDate && endDate && now >= startDate && now <= endDate;
+  const start = new Date(event.start_time);
+  const end = new Date(event.end_time);
+  const isLive = now >= start && now <= end;
 
-  const userTZ =
-    Intl.DateTimeFormat().resolvedOptions().timeZone || "local";
-
-  /* ======================
-     MAIN UI
-     ====================== */
   return (
     <div className="attendance-page">
-      <EventSummaryCard event={event} isLive={isLive} userTZ={userTZ} />
+      <EventSummaryCard event={event} isLive={isLive} />
 
       <div className="attendance-main">
         <GeoFenceCard event={event} />
 
-        <div ref={actionRef}>
-          <AttendanceActionCard
-            attendanceMarked={attendanceMarked}
-            isLive={isLive}
-            onMark={handleMarkAttendance}
-            onViewEvents={() => (window.location.href = "/")}
-          />
-        </div>
-      </div>
+        <AttendanceActionCard
+          attendanceMarked={attendanceMarked}
+          isLive={isLive}
+          onMark={handleMarkAttendance}
+          onViewEvents={() => (window.location.href = "/")}
+        />
 
-      <DeviceInfo deviceId={deviceId} />
+        {!session && (
+          <p className="warning">Please sign in to mark attendance</p>
+        )}
+
+        {session && !isRegistered && (
+          <p className="warning">
+            You are not registered for this event
+          </p>
+        )}
+      </div>
     </div>
   );
 }
