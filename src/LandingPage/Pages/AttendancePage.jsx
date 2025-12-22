@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
 
@@ -15,7 +15,7 @@ function AttendancePage() {
     const [attendanceMarked, setAttendanceMarked] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const deviceId = (() => {
+    const deviceId = useMemo(() => {
         const existing = localStorage.getItem("device_id");
         if (existing) return existing;
 
@@ -36,46 +36,51 @@ function AttendancePage() {
 
         localStorage.setItem("device_id", id);
         return id;
-    })();
+    }, []);
 
     useEffect(() => {
-        fetchEventAndStatus();
-    }, [eventId]);
-
-    const fetchEventAndStatus = async () => {
-        try {
-        // 1️⃣ Fetch event
-        const { data: eventData, error } = await supabase
-            .from("events")
-            .select("*")
-            .eq("id", eventId)
-            .single();
-
-        if (error || !eventData) {
-            console.error("Error fetching event:", error);
+        if (!eventId) {
             setLoading(false);
             return;
         }
 
-        setEvent(eventData);
+        const fetchEventAndStatus = async () => {
+            try {
+            // 1️⃣ Fetch event
+            const { data: eventData, error } = await supabase
+                .from("events")
+                .select("*")
+                .eq("id", eventId)
+                .single();
 
-        // 2️⃣ Check if attendance already marked
-        const { data: attendance, error: attendanceError } = await supabase
-            .from("attendance")
-            .select("id")
-            .eq("event_id", eventId)
-            .eq("device_id", deviceId)
-            .maybeSingle();
+            if (error || !eventData) {
+                console.error("Error fetching event:", error);
+                setLoading(false);
+                return;
+            }
 
-        if (attendanceError) console.error("Error checking attendance:", attendanceError);
+            setEvent(eventData);
 
-        setAttendanceMarked(!!attendance);
-        setLoading(false);
-        } catch (e) {
-        console.error("Unexpected error in fetchEventAndStatus:", e);
-        setLoading(false);
-        }
-    };
+            // 2️⃣ Check if attendance already marked
+            const { data: attendance, error: attendanceError } = await supabase
+                .from("attendance")
+                .select("id")
+                .eq("event_id", eventId)
+                .eq("device_id", deviceId)
+                .maybeSingle();
+
+            if (attendanceError) console.error("Error checking attendance:", attendanceError);
+
+            setAttendanceMarked(!!attendance);
+            setLoading(false);
+            } catch (e) {
+            console.error("Unexpected error in fetchEventAndStatus:", e);
+            setLoading(false);
+            }
+        };
+
+        fetchEventAndStatus();
+    }, [eventId, deviceId]);
 
     const handleMarkAttendance = async () => {
         const { error } = await supabase.from("attendance").insert({
