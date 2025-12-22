@@ -1,35 +1,22 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "../../Supabase/supabase-client";
-
-import EventSummaryCard from "../Components/EventSummaryCard";
-import GeoFenceCard from "../Components/GeofenceCard";
-import AttendanceActionCard from "../Components/AttendanceActionCard";
 import "../styles/AttendancePage.css";
 
 function AttendancePage() {
   const { eventId } = useParams();
-  const navigate = useNavigate();
-
-  const [session, setSession] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
 
   const [event, setEvent] = useState(null);
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [attendanceMarked, setAttendanceMarked] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ---------------- AUTH (NON-BLOCKING) ---------------- */
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data?.session ?? null);
-      setAuthChecked(true);
-    });
-  }, []);
+  const [name, setName] = useState("");
+  const [rollNo, setRollNo] = useState("");
+  const [status, setStatus] = useState("");
 
-  /* ---------------- LOAD EVENT (PUBLIC) ---------------- */
+  /* =====================
+     LOAD EVENT
+     ===================== */
   useEffect(() => {
     if (!eventId) {
       setError("Invalid event link");
@@ -52,65 +39,65 @@ function AttendancePage() {
       });
   }, [eventId]);
 
-  /* ---------------- VALIDATIONS (AFTER LOGIN) ---------------- */
-  useEffect(() => {
-    if (!session || !eventId) return;
+  /* =====================
+     MARK ATTENDANCE
+     ===================== */
+  const handleSubmit = async () => {
+    setStatus("");
 
-    const email = session.user.email;
-    const userId = session.user.id;
+    if (!name || !rollNo) {
+      setStatus("Please fill all fields");
+      return;
+    }
 
-    supabase
+    // 1️⃣ Check participant registration
+    const { data: participant } = await supabase
       .from("event_participants")
       .select("id")
       .eq("event_id", eventId)
-      .eq("email", email)
-      .maybeSingle()
-      .then(({ data }) => setIsRegistered(Boolean(data)));
+      .eq("name", name)
+      .eq("roll_no", rollNo)
+      .maybeSingle();
 
-    supabase
+    if (!participant) {
+      setStatus("You are not registered for this event");
+      return;
+    }
+
+    // 2️⃣ Check if attendance already marked
+    const { data: existing } = await supabase
       .from("attendance")
       .select("id")
       .eq("event_id", eventId)
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data }) => setAttendanceMarked(Boolean(data)));
-  }, [session, eventId]);
+      .eq("roll_no", rollNo)
+      .maybeSingle();
 
-  /* ---------------- MARK ATTENDANCE ---------------- */
-  const handleMarkAttendance = async () => {
-    if (!session) {
-      navigate(`/signup?redirect=/attendance/${eventId}`);
+    if (existing) {
+      setStatus("Attendance already marked");
       return;
     }
 
-    if (!isRegistered) {
-      alert("You are not registered for this event");
-      return;
-    }
-
-    if (attendanceMarked) {
-      alert("Attendance already marked");
-      return;
-    }
-
+    // 3️⃣ Insert attendance
     const { error } = await supabase.from("attendance").insert({
       event_id: eventId,
-      user_id: session.user.id,
+      name,
+      roll_no: rollNo,
     });
 
     if (error) {
-      alert("Failed to mark attendance");
+      setStatus("Failed to mark attendance");
       return;
     }
 
-    setAttendanceMarked(true);
+    setStatus("✅ Attendance marked successfully");
+    setName("");
+    setRollNo("");
   };
 
-  /* ---------------- RENDER ---------------- */
-
-  if (loading) {
-    return <p className="loading-text">Loading event…</p>;
-  }
+  /* =====================
+     RENDER STATES
+     ===================== */
+  if (loading) return <p className="loading-text">Loading attendance...</p>;
 
   if (error) {
     return (
@@ -121,33 +108,35 @@ function AttendancePage() {
     );
   }
 
-  const parseISO = (s) => new Date(s.endsWith("Z") ? s : s + "Z");
-  const isLive =
-    new Date() >= parseISO(event.start_time) &&
-    new Date() <= parseISO(event.end_time);
-
   return (
     <div className="attendance-page">
-      {/* ALWAYS visible */}
-      <EventSummaryCard event={event} isLive={isLive} />
+      <div className="card">
+        <h2>{event.title}</h2>
+        <p>{event.description}</p>
+      </div>
 
-      <div className="attendance-main">
-        <GeoFenceCard event={event} />
+      <div className="card">
+        <h3>Mark Attendance</h3>
 
-        <AttendanceActionCard
-          attendanceMarked={attendanceMarked}
-          isLive={isLive}
-          onMark={handleMarkAttendance}
-          onViewEvents={() => navigate("/")}
+        <input
+          type="text"
+          placeholder="Your Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         />
 
-        {!session && (
-          <p className="warning">Please sign in to mark attendance</p>
-        )}
+        <input
+          type="text"
+          placeholder="Roll Number"
+          value={rollNo}
+          onChange={(e) => setRollNo(e.target.value)}
+        />
 
-        {session && !isRegistered && (
-          <p className="warning">You are not registered for this event</p>
-        )}
+        <button className="primary-btn" onClick={handleSubmit}>
+          MARK ATTENDANCE
+        </button>
+
+        {status && <p className="warning">{status}</p>}
       </div>
     </div>
   );
