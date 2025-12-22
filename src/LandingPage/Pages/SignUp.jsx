@@ -12,6 +12,8 @@ const AuthBox = () => {
     email: "",
     password: "",
   });
+  const [authError, setAuthError] = useState(null);
+  const [loadingSignUp, setLoadingSignUp] = useState(false);
 
   const handleSignUpChange = (e) => {
     setForm({
@@ -22,27 +24,55 @@ const AuthBox = () => {
 
   const handleSignUpSubmit = async(e) => {
     e.preventDefault();
+    setAuthError(null);
+    setLoadingSignUp(true);
 
     const signupData = {
       name: form.name,
       email: form.email,
       password: form.password,
     };
-    const {data} = await supabase.auth.signUp({
-    email: form.email,
-    password: form.password,
-    options: {
-      data: {
-        name: form.name,
-      }
-    }
-    })
-    console.log("Signup JSON:", JSON.stringify(signupData, null, 2));
-    setForm({
-      name: "",
-      email: "",
-      password: "",
+
+    const { data, error } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          name: form.name,
+        },
+      },
     });
+
+    if (error) {
+      setAuthError(error.message);
+      setLoadingSignUp(false);
+      return;
+    }
+
+    // If Supabase returned a session, the user is already signed in
+    if (data?.session) {
+      setForm({ name: "", email: "", password: "" });
+      setLoadingSignUp(false);
+      navigatee("/admin");
+      return;
+    }
+
+    // Some Supabase configurations don't create an immediate session on signUp
+    // Try signing in immediately (useful when email confirmations are disabled)
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    });
+
+    if (signInError) {
+      setAuthError(signInError.message || "Please confirm your email or sign in.");
+      setLoadingSignUp(false);
+      return;
+    }
+
+    // Signed in successfully
+    setForm({ name: "", email: "", password: "" });
+    setLoadingSignUp(false);
     navigatee("/admin");
   };
 
@@ -96,8 +126,13 @@ const AuthBox = () => {
               </div>
             </div>
 
-            <button type="submit" className="auth-btn">
-              Sign Up
+            {authError && (
+              <p className="auth-error" style={{ color: "salmon", marginTop: "12px" }}>
+                {authError}
+              </p>
+            )}
+            <button type="submit" className="auth-btn" disabled={loadingSignUp}>
+              {loadingSignUp ? "Creating..." : "Sign Up"}
             </button>
           </form>
         </div>
