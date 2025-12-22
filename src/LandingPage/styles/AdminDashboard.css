@@ -81,9 +81,3 @@
         font-size: 28px;
     }
     }
-    
-@media (min-width: 1024px) {
-    .admin-events:has(.event-card:only-child) {
-    justify-content: center;
-    }
-}

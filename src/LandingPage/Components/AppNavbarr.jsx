@@ -2,6 +2,7 @@ import React from "react";
 import Container from "react-bootstrap/Container";
 import Navbar from "react-bootstrap/Navbar";
 import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded";
+import { Link } from "react-router-dom";
 import "../styles/Navbar.css";
 
 function AppNavbar() {
@@ -13,9 +14,9 @@ function AppNavbar() {
             <span className="brand-text">GeoStamp</span>
             </div>
             <div className="navbar-right">
-            <a className="admin-label" href="/admin">
+            <Link className="admin-label" to="/admin">
                 ADMIN
-            </a>
+            </Link>
             <button
                 className="view-events-btn"
             >
