@@ -9,23 +9,17 @@ import DeviceInfo from "../Components/DeviceInfo";
 import "../styles/AttendancePage.css";
 
 /* ======================
-   SAFE DEVICE ID (NO RENDER-TIME STORAGE)
+   MOBILE-SAFE DEVICE ID
    ====================== */
 const generateDeviceId = () => {
   try {
     const existing = localStorage.getItem("device_id");
     if (existing) return existing;
 
-    const id =
-      crypto?.randomUUID?.() ||
-      `dm-${Date.now().toString(36)}-${Math.random()
-        .toString(36)
-        .slice(2, 10)}`;
-
+    const id = `dm-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     localStorage.setItem("device_id", id);
     return id;
   } catch {
-    // mobile / private mode fallback
     return `dm-temp-${Date.now()}`;
   }
 };
@@ -102,7 +96,7 @@ function AttendancePage() {
 
         setEvent(data);
         setLoading(false);
-      } catch (e) {
+      } catch {
         if (cancelled) return;
         setErrorMsg("Failed to load event");
         setLoading(false);
@@ -110,11 +104,13 @@ function AttendancePage() {
     };
 
     fetchEvent();
-    return () => (cancelled = true);
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   /* ======================
-     CHECK ATTENDANCE (ONLY IF LOGGED IN)
+     CHECK ATTENDANCE
      ====================== */
   useEffect(() => {
     let cancelled = false;
@@ -135,7 +131,9 @@ function AttendancePage() {
     };
 
     checkAttendance();
-    return () => (cancelled = true);
+    return () => {
+      cancelled = true;
+    };
   }, [session, deviceId, eventId]);
 
   /* ======================
@@ -175,7 +173,7 @@ function AttendancePage() {
   }, [loading]);
 
   /* ======================
-     RENDER STATES (NEVER BLANK)
+     RENDER STATES
      ====================== */
   if (authLoading || !deviceId) {
     return <p className="loading-text">Preparing attendance…</p>;
