@@ -5,7 +5,7 @@ import { supabase } from "../../Supabase/supabase-client";
 import { useNavigate } from "react-router-dom";
 
 const AuthBox = () => {
-  const navigate = useNavigate();
+  const navigatee = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -43,7 +43,7 @@ const AuthBox = () => {
       email: "",
       password: "",
     });
-    navigate("/admin");
+    navigatee("/admin");
   };
 
   return (
