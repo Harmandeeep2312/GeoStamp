@@ -11,24 +11,24 @@ import AppNavbar from "../Components/AppNavbarr";
     const [session, setSession] = useState(null);
     const [eventsData, setEventsData] = useState([]);
     const [selectedEvent, setSelectedEvent] = useState(null);
-
+    const [loading, setLoading] = useState(true);
     const [createOpen, setCreateOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
     useEffect(() => {
-    // 1. Get existing session (on refresh / reload)
     supabase.auth.getSession().then(({ data }) => {
         setSession(data.session);
+        setLoading(false);
 
         if (data.session) {
         fetchEvents();
         }
     });
 
-    // 2. Listen for login / signup / logout changes
     const { data: listener } = supabase.auth.onAuthStateChange(
         (_event, session) => {
         setSession(session);
+        setLoading(false);
 
         if (session) {
             fetchEvents();
@@ -43,6 +43,7 @@ import AppNavbar from "../Components/AppNavbarr";
     };
     }, []);
 
+
 const fetchEvents = async () => {
     const { data, error } = await supabase.from("events").select("*");
 
@@ -52,8 +53,16 @@ const fetchEvents = async () => {
 };
 
 
+    if (loading) {
+    return (
+        <div style={{ color: "white", padding: "40px" }}>
+        Loading admin dashboard...
+        </div>
+    );
+    }
+
     if (!session) {
-        return <SignUp />;
+    return <SignUp />;
     }
 
     const handleCardClick = (event) => {
