@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AppNavbarr from "../Components/AppNavbarr";
 import "../styles/SignUp.css";
 import { supabase } from "../../Supabase/supabase-client";
@@ -7,8 +7,20 @@ import { useNavigate, useLocation } from "react-router-dom";
 const AuthBox = () => {
   const navigatee = useNavigate();
   const location = useLocation();
-  const redirectTo = new URLSearchParams(location.search).get("redirect") || "/admin";
+  const redirectTo = location.state?.redirectTo || new URLSearchParams(location.search).get("redirect") || "/admin";
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        navigatee(redirectTo, { replace: true });
+      }
+    });
+
+    return () => {
+      listener?.subscription?.unsubscribe();
+    };
+  }, [navigatee, redirectTo]);
   const [form, setForm] = useState({
     name: "",
     email: "",

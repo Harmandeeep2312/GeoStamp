@@ -2,23 +2,28 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import LandiingPage from './LandingPage/Pages/LandingPage';
-import ErrorBoundary from './ErrorBoundary';
 import SignUp from './LandingPage/Pages/SignUp'
 import {BrowserRouter, Routes, Route} from "react-router-dom";
 import AdminDashboard from './LandingPage/Pages/AdminDashBoard';
 import AttendancePage from './LandingPage/Pages/AttendancePage';
+import ProtectedRoute from './LandingPage/Components/ProtectedRoute';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <BrowserRouter>
-    <ErrorBoundary>
       <Routes>
         <Route path='/' element={<LandiingPage />}></Route>
         <Route path='/signup' element={<SignUp />}></Route>
         <Route path='/admin' element={<AdminDashboard />}></Route>
-        <Route path="/attendance/:eventId" element={<AttendancePage />}></Route>
+        <Route
+          path="/attendance/:eventId"
+          element={
+            <ProtectedRoute>
+              <AttendancePage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
-    </ErrorBoundary>
   </BrowserRouter>
 );
 
