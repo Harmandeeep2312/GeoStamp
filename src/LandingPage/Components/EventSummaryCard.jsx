@@ -1,4 +1,23 @@
-function EventSummaryCard({ event, isLive }) {
+function EventSummaryCard({ event, isLive, userTZ }) {
+    // parse timestamps and assume UTC if timezone missing
+    const parseISODate = (s) => {
+        if (!s) return null;
+        const hasTZ = /Z|[+-]\d{2}(:\d{2})?/.test(s);
+        return new Date(hasTZ ? s : s + "Z");
+    };
+
+    const start = parseISODate(event.start_time);
+    const end = parseISODate(event.end_time);
+
+    const fmt = (d) => {
+        if (!d) return "—";
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+            timeZoneName: "short",
+        }).format(d);
+    };
+
     return (
         <div className="card event-summary">
         <div className="event-status">
@@ -11,9 +30,9 @@ function EventSummaryCard({ event, isLive }) {
         <p className="event-name">{event.name}</p>
 
         <p className="event-time">
-            {new Date(event.start_time).toLocaleString()} –{" "}
-            {new Date(event.end_time).toLocaleString()}
+            {fmt(start)} – {fmt(end)}
         </p>
+        <small style={{ opacity: 0.75 }}>Times shown in {userTZ || Intl.DateTimeFormat().resolvedOptions().timeZone}</small>
         </div>
     );
 }
