@@ -1,0 +1,89 @@
+    .Admin-page {
+    min-height: 100vh;
+    padding-bottom: 48px;
+    margin: 0 auto;
+    }
+    .admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    }
+    .Admin-wrapper {
+    max-width: 1200px;
+    margin:auto;
+    padding: 30px 1px;
+    }
+    .admin-header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #f8fbff;
+    }
+    .admin-header button {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #021017;
+    border: none;
+    padding: 12px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .admin-header button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 36px rgba(34, 211, 238, 0.65);
+    }
+    .admin-events {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 32px;
+    align-items: start;
+    }
+    .admin-events:empty::after {
+    content: "No events created yet";
+    color: #7dd3fc;
+    opacity: 0.6;
+    font-size: 16px;
+    margin-top: 40px;
+    }
+    .status-badge {
+    padding: 4px 12px;
+    font-size: 11px;
+    border-radius: 999px;
+    font-weight: 600;
+    }
+    .status-live {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.5);
+    }
+    .status-upcoming {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    }
+    .status-ended {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+    @media (max-width: 768px) {
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .admin-header h1 {
+        font-size: 28px;
+    }
+    }
+    
+@media (min-width: 1024px) {
+    .admin-events:has(.event-card:only-child) {
+    justify-content: center;
+    }
+}

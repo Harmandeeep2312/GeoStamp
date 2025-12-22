@@ -1,0 +1,75 @@
+    /* Dialog shell */
+    .event-details-dialog .MuiPaper-root {
+    background: linear-gradient(160deg, #020617, #01030a);
+    border-radius: 20px;
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    box-shadow: 0 0 60px rgba(0, 255, 255, 0.15);
+    color: #e5f6ff;
+    }
+
+    /* Title */
+    .event-details-title {
+    font-size: 22px;
+    font-weight: 700;
+    padding: 20px 24px;
+    }
+
+    /* Layout */
+    .event-details-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 24px;
+    padding: 16px 8px;
+    }
+
+    /* Left info */
+    .event-info p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #c7e9f5;
+    }
+
+    /* Geofence section */
+    .geofence-details {
+    margin-top: 14px;
+    }
+
+    .geofence-details h4 {
+    margin-bottom: 8px;
+    color: #67e8f9;
+    }
+
+    /* Divider */
+    .event-divider {
+    margin: 24px 0;
+    border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Attendance */
+    .attendance-records h4 {
+    margin-bottom: 12px;
+    }
+
+    .record-row {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    }
+
+    /* Actions */
+    .dialog-actions {
+    padding: 20px;
+    }
+
+    .delete-btn {
+    background: #ef4444 !important;
+    box-shadow: 0 0 24px rgba(239, 68, 68, 0.6);
+    }
+
+    .edit-btn {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4) !important;
+    color: #021017 !important;
+    }
