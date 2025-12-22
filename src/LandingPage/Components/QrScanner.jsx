@@ -5,6 +5,9 @@ import { supabase } from "../../Supabase/supabase-client";
 
 function QrScanner({ onClose }) {
     const navigate = useNavigate();
+    const scannerRef = useRef(null);
+    const hasScannedRef = useRef(false);
+    const [decodedText, setDecodedText] = useState("");
     const [parsedEventId, setParsedEventId] = useState(null);
     const [scanError, setScanError] = useState(null);
 
