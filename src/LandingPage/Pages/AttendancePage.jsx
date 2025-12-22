@@ -37,41 +37,62 @@ function AttendancePage() {
     })();
 
     useEffect(() => {
-        fetchEventAndStatus();
-    }, [eventId]);
+        let cancelled = false;
 
-    const fetchEventAndStatus = async () => {
+        if (!eventId) {
+        setEvent(null);
+        setAttendanceMarked(false);
+        setLoading(false);
+        return;
+        }
+
+        const doFetch = async () => {
         try {
-        const { data: eventData, error } = await supabase
+            setLoading(true);
+
+            const { data: eventData, error } = await supabase
             .from("events")
             .select("*")
             .eq("id", eventId)
             .single();
 
-        if (error || !eventData) {
+            if (cancelled) return;
+
+            if (error || !eventData) {
             console.error("Error fetching event:", error);
+            setEvent(null);
             setLoading(false);
             return;
-        }
+            }
 
-        setEvent(eventData);
+            setEvent(eventData);
 
-        const { data: attendance, error: attendanceError } = await supabase
+            const { data: attendance, error: attendanceError } = await supabase
             .from("attendance")
             .select("id")
             .eq("event_id", eventId)
             .eq("device_id", deviceId)
             .maybeSingle();
 
-        if (attendanceError) console.error("Error checking attendance:", attendanceError);
+            if (cancelled) return;
 
-        setAttendanceMarked(!!attendance);
-        setLoading(false);
+            if (attendanceError) console.error("Error checking attendance:", attendanceError);
+
+            setAttendanceMarked(!!attendance);
+            setLoading(false);
         } catch (e) {
-        console.error("Unexpected error in fetchEventAndStatus:", e);
-        setLoading(false);
+            if (cancelled) return;
+            console.error("Unexpected error in fetchEventAndStatus:", e);
+            setLoading(false);
         }
-    };
+        };
+
+        doFetch();
+
+        return () => {
+        cancelled = true;
+        };
+    }, [eventId, deviceId]);
 
     const handleMarkAttendance = async () => {
         const { error } = await supabase.from("attendance").insert({
