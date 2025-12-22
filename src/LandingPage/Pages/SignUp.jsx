@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import AppNavbarr from "../Components/AppNavbarr";
 import "../styles/SignUp.css";
 import { supabase } from "../../Supabase/supabase-client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const AuthBox = () => {
   const navigatee = useNavigate();
+  const location = useLocation();
+  const redirectTo = new URLSearchParams(location.search).get("redirect") || "/admin";
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -53,7 +55,7 @@ const AuthBox = () => {
     if (data?.session) {
       setForm({ name: "", email: "", password: "" });
       setLoadingSignUp(false);
-      navigatee("/admin");
+      navigatee(redirectTo);
       return;
     }
 
@@ -73,7 +75,7 @@ const AuthBox = () => {
     // Signed in successfully
     setForm({ name: "", email: "", password: "" });
     setLoadingSignUp(false);
-    navigatee("/admin");
+    navigatee(redirectTo);
   };
 
   return (
