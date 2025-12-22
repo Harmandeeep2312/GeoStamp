@@ -110,7 +110,12 @@ function AttendancePage() {
 
     const actionRef = useRef(null);
     const location = useLocation();
-    const cameFromScanner = location.state?.fromScanner;
+    const qp = new URLSearchParams(location.search).get("from");
+    const isMobile = typeof navigator !== "undefined" && /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    const noReferrer = typeof document !== "undefined" && !document.referrer;
+    const cameFromScanner = location.state?.fromScanner || qp === "qr" || (isMobile && noReferrer);
+
+    const [highlightAction, setHighlightAction] = useState(false);
 
     useEffect(() => {
         if (!loading && cameFromScanner) {
@@ -118,6 +123,11 @@ function AttendancePage() {
             actionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
             const btn = actionRef.current?.querySelector(".primary-btn");
             if (btn) btn.focus();
+            setHighlightAction(true);
+
+            // remove highlight after a short duration
+            const t = setTimeout(() => setHighlightAction(false), 3500);
+            return () => clearTimeout(t);
         }, 120);
         }
     }, [loading, cameFromScanner]);

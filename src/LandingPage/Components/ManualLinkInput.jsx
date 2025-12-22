@@ -11,9 +11,28 @@ function ManualLinkInput({ onClose }) {
         return;
         }
 
-        const eventId = link.split("/attendance/")[1];
-        navigate(`/attendance/${eventId}`);
+        try {
+        // If full URL, preserve pathname and search
+        if (/^https?:\/\//i.test(link)) {
+            const url = new URL(link);
+            const path = `${url.pathname}${url.search}`;
+            const searchParams = new URLSearchParams(url.search);
+            if (!searchParams.get("from")) searchParams.set("from", "qr");
+            navigate(`${url.pathname}?${searchParams.toString()}`);
+            onClose?.();
+            return;
+        }
+        // Otherwise, extract the attendance path portion
+        const idx = link.indexOf("/attendance/");
+        const remainder = link.slice(idx); // includes /attendance/...
+        const [path, search] = remainder.split("?");
+        const searchParams = new URLSearchParams(search || "");
+        if (!searchParams.get("from")) searchParams.set("from", "qr");
+        navigate(`${path}?${searchParams.toString()}`);
         onClose?.();
+        } catch (e) {
+        alert("Invalid link format");
+        }
     };
 
     return (

@@ -33,6 +33,19 @@
     box-shadow: 0 0 32px rgba(0,0,0,0.6);
 }
 
+/* highlight used when arriving from scanner */
+.attendance-action.highlight {
+    animation: pulse 1.2s ease-in-out 2;
+    border-color: rgba(34,211,238,0.9);
+    box-shadow: 0 0 36px rgba(34,211,238,0.6);
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
 .event-status {
     display: flex;
     align-items: center;

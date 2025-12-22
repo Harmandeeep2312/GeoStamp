@@ -32,8 +32,10 @@ function QrScanner({ onClose }) {
 
                 if (scanned) return;
 
+                let normalized;
                 try {
-                    if (String(text).toLowerCase().includes("index.html")) return;
+                    normalized = String(text || "").replace(/\s+/g, "");
+                    if (normalized.toLowerCase().includes("index.html")) return;
                 } catch (e) {
                     setScanError(String(e));
                     return;
@@ -41,12 +43,12 @@ function QrScanner({ onClose }) {
 
                 let eventId = null;
                 try {
-                    const match = String(text).match(/(?:\/attendance\/|attendance\/)([A-Za-z0-9_-]+)/i);
+                    const match = normalized.match(/attendance\/([A-Za-z0-9-]+)/i);
                     if (match) eventId = match[1];
                 } catch (e) {
                     setScanError(String(e));
                 }
-
+                setParsedEventId(eventId || null);
                 setParsedEventId(eventId || null);
                 setDebugVisible(true);
                 localStorage.setItem("qr_debug", "1");
@@ -68,10 +70,10 @@ function QrScanner({ onClose }) {
                     await new Promise((r) => setTimeout(r, 700));
 
                     if (!session) {
-                        navigate(`/signup?redirect=/attendance/${eventId}`);
+                        navigate(`/signup?redirect=/attendance/${eventId}?from=qr`);
                         if (typeof onClose === "function") onClose();
                     } else {
-                        navigate(`/attendance/${eventId}`, { state: { fromScanner: true } });
+                        navigate(`/attendance/${eventId}?from=qr`, { state: { fromScanner: true } });
                         if (typeof onClose === "function") onClose();
                     }
                 } catch (e) {
@@ -119,14 +121,14 @@ function QrScanner({ onClose }) {
         <div className="qr-box">
             <div id="qr-reader" />
 
-            <div style={{ position: "fixed", left: 12, bottom: 12, zIndex: 9999 }}>
+            <div style={{ position: "fixed", left: 12, bottom: 12, zIndex: 2147483647 }}>
                 <button onClick={toggleDebug} style={{ padding: 8, borderRadius: 8 }}>
                     {debugVisible ? "Hide QR Debug" : "Show QR Debug"}
                 </button>
             </div>
 
             {debugVisible && (
-                <div style={{ position: "fixed", left: 12, bottom: 64, zIndex: 9999, width: 320, maxWidth: "90vw", background: "rgba(2,6,23,0.95)", color: "#e5faff", border: "1px solid rgba(34,211,238,0.25)", borderRadius: 8, padding: 12, fontSize: 12 }}>
+                <div style={{ position: "fixed", left: 12, bottom: 64, zIndex: 2147483647, width: 320, maxWidth: "90vw", background: "rgba(2,6,23,0.95)", color: "#e5faff", border: "1px solid rgba(34,211,238,0.25)", borderRadius: 8, padding: 12, fontSize: 12 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                         <strong>QR Debug</strong>
                         <small>{lastScan ? new Date(lastScan).toLocaleTimeString() : "—"}</small>

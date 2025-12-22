@@ -1,7 +1,6 @@
-function AttendanceActionCard({attendanceMarked,isLive,onMark,onViewEvents,}) 
-{
+function AttendanceActionCard({ attendanceMarked, isLive, onMark, onViewEvents, highlight = false }) {
     return (
-        <div className="card attendance-action">
+        <div className={`card attendance-action ${highlight ? "highlight" : ""}`}>
         <h2>Ready to Mark Attendance</h2>
 
         <p className="muted">
@@ -20,6 +19,7 @@ function AttendanceActionCard({attendanceMarked,isLive,onMark,onViewEvents,})
             className="primary-btn"
             onClick={onMark}
             disabled={!isLive}
+            autoFocus={highlight && isLive}
             >
             MARK ATTENDANCE
             </button>

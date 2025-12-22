@@ -3,7 +3,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import QRCode from "react-qr-code";
 import '../styles/AttendanceSharePopUp.css'
 function AttendanceSharePopUp({ open, onClose, eventId }) {
-    const attendanceLink = `${window.location.origin}/attendance/${eventId}`;
+    const attendanceLink = `${window.location.origin}/attendance/${eventId}?from=qr`;
 
     const copyLink = async () => {
         await navigator.clipboard.writeText(attendanceLink);
