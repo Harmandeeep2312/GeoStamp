@@ -4,7 +4,6 @@ import "../styles/ParticipantsCSV.css";
 function ParticipantsCSVManager({
     csvInfo,
     onUpload,
-    onReplace,
     }) {
     const handleFile = (file) => {
         if (!file) return;
@@ -12,7 +11,22 @@ function ParticipantsCSVManager({
         Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        complete: (res) => onUpload(res.data, file.name),
+        complete: (res) => {
+            const rows = res.data;
+
+            // Validate CSV structure
+            const requiredCols = ["name", "email", "roll_no"];
+            const isValid = requiredCols.every((col) =>
+            Object.keys(rows[0] || {}).includes(col)
+            );
+
+            if (!isValid) {
+            alert("CSV must contain columns: name, email, roll_no");
+            return;
+            }
+
+            onUpload(rows, file.name);
+        },
         });
     };
 

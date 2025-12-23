@@ -27,7 +27,7 @@ function HeroSection() {
             </p>
 
             <div className="hero-actions">
-            <button className="hero-btn primary" onClick={() => navigate("/admin")}>
+            <button className="hero-btn primary" onClick={() => navigate("/auth?redirect=/admin")}>
                 <ShieldRoundedIcon />
                 Create Event
             </button>

@@ -2,7 +2,7 @@ function EventSummaryCard({ event, isLive, userTZ }) {
 
   const parseISODate = (s) => {
     if (!s) return null;
-    return new Date(s); // ✅ DO NOT append Z
+    return new Date(s); 
   };
 
   const start = parseISODate(event.start_time);

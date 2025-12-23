@@ -11,7 +11,6 @@ import { GeoFenceVisualizer } from "./GeoFenceVisualizer";
 import { supabase } from "../../Supabase/supabase-client";
 import UpdateEventPopUp from "./UpdateEventPopUp";
 import AttendanceTable from "./AttendanceTable";
-
 import AttendanceShareSection from "./AttendanceShareSection";
 import ParticipantsCSVManager from "./ParticipantsCSVManager";
 
@@ -21,9 +20,10 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
     const [editOpen, setEditOpen] = useState(false);
     const [attendance, setAttendance] = useState([]);
     const [csvName, setCsvName] = useState(null);
+    const [csvOpen, setCsvOpen] = useState(false);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open || !event) return;
 
         const fetchAttendance = async () => {
         const { data } = await supabase
@@ -47,10 +47,11 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
 
         fetchAttendance();
     }, [open, event]);
-    useEffect(() => {
-        if (!open) return;
 
-        const fetchCSV = async () => {
+    useEffect(() => {
+        if (!open || !event) return;
+
+        const fetchCSVInfo = async () => {
         const { data } = await supabase
             .from("event_participants")
             .select("source_file")
@@ -58,12 +59,10 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
             .limit(1)
             .maybeSingle();
 
-        if (data?.source_file) {
-            setCsvName(data.source_file);
-        }
+        setCsvName(data?.source_file || null);
         };
 
-        fetchCSV();
+        fetchCSVInfo();
     }, [open, event]);
 
     if (!event) return null;
@@ -83,6 +82,26 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
         }
     };
 
+    const handleCSVUpload = async (rows, filename) => {
+        await supabase
+        .from("event_participants")
+        .delete()
+        .eq("event_id", event.id);
+
+        const payload = rows.map((r) => ({
+        event_id: event.id,
+        name: r.name,
+        email: r.email,
+        roll_no: r.roll_no,
+        source_file: filename,
+        }));
+
+        await supabase.from("event_participants").insert(payload);
+
+        setCsvName(filename);
+        setCsvOpen(false);
+    };
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontSize: 24, fontWeight: 700 }}>
@@ -99,13 +118,10 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
             <div className="event-details-layout">
             <div className="event-info">
                 <p>📍 {event.venue}</p>
-
+                <p>📅 {start.toLocaleDateString()} → {end.toLocaleDateString()}</p>
                 <p>
-                📅 {start.toLocaleDateString()} → {end.toLocaleDateString()}
-                </p>
-
-                <p>
-                ⏰ {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{" "}
+                ⏰{" "}
+                {start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{" "}
                 –{" "}
                 {end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
@@ -122,27 +138,44 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
                 <GeoFenceVisualizer />
             </div>
             </div>
-            <hr />
-            <AttendanceShareSection eventId={event.id} />
-            <ParticipantsCSVManager
-            csvInfo={csvName}
-            onUpload={async (rows, filename) => {
-                setCsvName(filename);
-                const payload = rows.map((r) => ({
-                event_id: event.id,
-                name: r.name,
-                email: r.email,
-                roll_no: r.roll_no,
-                source_file: filename,
-                }));
 
-                await supabase.from("event_participants").insert(payload);
-            }}
-            onReplace={() => setCsvName(null)}
-            />
             <hr />
+
+            <AttendanceShareSection eventId={event.id} />
+
+            <div style={{ marginTop: 16 }}>
+            {csvName ? (
+                <>
+                <p className="muted">CSV Uploaded: {csvName}</p>
+                <Button
+                    variant="outlined"
+                    onClick={() => setCsvOpen(true)}
+                >
+                    Edit / Replace CSV
+                </Button>
+                </>
+            ) : (
+                <Button
+                variant="contained"
+                onClick={() => setCsvOpen(true)}
+                >
+                Add Participants (CSV)
+                </Button>
+            )}
+            </div>
+
+            <ParticipantsCSVManager
+            open={csvOpen}
+            csvInfo={csvName}
+            onClose={() => setCsvOpen(false)}
+            onUpload={handleCSVUpload}
+            />
+
+            <hr />
+
             <AttendanceTable attendance={attendance} />
         </DialogContent>
+
         <DialogActions sx={{ justifyContent: "space-between" }}>
             <Button color="error" variant="contained" onClick={handleDelete}>
             DELETE EVENT
@@ -155,6 +188,7 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
             EDIT EVENT
             </Button>
         </DialogActions>
+
         <UpdateEventPopUp
             open={editOpen}
             event={event}
@@ -163,4 +197,5 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
         </Dialog>
     );
 }
+
 export default EventDetailsPopUp;

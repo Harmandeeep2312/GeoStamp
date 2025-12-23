@@ -10,7 +10,19 @@ function ParticipantsCSVSection({ onParticipantsLoaded }) {
         skipEmptyLines: true,
         complete: (results) => {
             const rows = results.data;
-            onParticipantsLoaded(rows);
+
+            // Basic validation
+            const requiredCols = ["name", "email", "roll_no"];
+            const isValid = requiredCols.every((col) =>
+            Object.keys(rows[0] || {}).includes(col)
+            );
+
+            if (!isValid) {
+            alert("CSV must contain columns: name, email, roll_no");
+            return;
+            }
+
+            onParticipantsLoaded(rows, file.name);
         },
         });
     };

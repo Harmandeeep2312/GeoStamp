@@ -10,9 +10,6 @@ import "../styles/AttendancePage.css";
 function AttendancePage() {
   const { eventId } = useParams();
 
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
   const [event, setEvent] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
@@ -20,28 +17,7 @@ function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ======================
-     AUTH
-     ====================== */
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data?.session ?? null);
-      setAuthLoading(false);
-    });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session ?? null);
-        setAuthLoading(false);
-      }
-    );
-
-    return () => listener?.subscription?.unsubscribe();
-  }, []);
-
-  /* ======================
-     LOAD EVENT
-     ====================== */
   useEffect(() => {
     if (!eventId) {
       setError("Invalid event link");
@@ -64,47 +40,39 @@ function AttendancePage() {
       });
   }, [eventId]);
 
-  /* ======================
-     CHECK REGISTRATION + ATTENDANCE
-     ====================== */
+
   useEffect(() => {
-    if (!session || !eventId) return;
+    const loadUserState = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
 
-    const email = session.user.email;
-    const userId = session.user.id;
+      if (!user || !eventId) return;
 
-    // 1. Check if student is registered
-    supabase
-      .from("event_participants")
-      .select("id")
-      .eq("event_id", eventId)
-      .eq("email", email)
-      .maybeSingle()
-      .then(({ data }) => {
-        setIsRegistered(Boolean(data));
-      });
 
-    // 2. Check if attendance already marked
-    supabase
-      .from("attendance")
-      .select("id")
-      .eq("event_id", eventId)
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setAttendanceMarked(Boolean(data));
-      });
-  }, [session, eventId]);
+      const { data: reg } = await supabase
+        .from("event_participants")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("email", user.email)
+        .maybeSingle();
 
-  /* ======================
-     MARK ATTENDANCE
-     ====================== */
+      setIsRegistered(Boolean(reg));
+
+
+      const { data: attendance } = await supabase
+        .from("attendance")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      setAttendanceMarked(Boolean(attendance));
+    };
+
+    loadUserState();
+  }, [eventId]);
+
   const handleMarkAttendance = async () => {
-    if (!session) {
-      window.location.href = "/signup";
-      return;
-    }
-
     if (!isRegistered) {
       alert("You are not registered for this event");
       return;
@@ -115,9 +83,11 @@ function AttendancePage() {
       return;
     }
 
+    const { data } = await supabase.auth.getUser();
+
     const { error } = await supabase.from("attendance").insert({
       event_id: eventId,
-      user_id: session.user.id,
+      user_id: data.user.id,
     });
 
     if (error) {
@@ -128,10 +98,7 @@ function AttendancePage() {
     setAttendanceMarked(true);
   };
 
-  /* ======================
-     RENDER STATES
-     ====================== */
-  if (authLoading || loading) {
+  if (loading) {
     return <p className="loading-text">Loading attendance…</p>;
   }
 
@@ -144,12 +111,10 @@ function AttendancePage() {
     );
   }
 
-  /* ======================
-     EVENT TIME CHECK
-     ====================== */
+
   const now = new Date();
-  const start = new Date(event.start_time);
-  const end = new Date(event.end_time);
+  const start = new Date(event.startTime);
+  const end = new Date(event.endTime);
   const isLive = now >= start && now <= end;
 
   return (
@@ -160,17 +125,14 @@ function AttendancePage() {
         <GeoFenceCard event={event} />
 
         <AttendanceActionCard
-          attendanceMarked={attendanceMarked}
-          isLive={isLive}
-          onMark={handleMarkAttendance}
-          onViewEvents={() => (window.location.href = "/")}
+            attendanceMarked={attendanceMarked}
+            isLive={isLive}
+            isRegistered={isRegistered}
+            onMark={handleMarkAttendance}
+            onViewEvents={() => (window.location.href = "/")}
         />
 
-        {!session && (
-          <p className="warning">Please sign in to mark attendance</p>
-        )}
-
-        {session && !isRegistered && (
+        {!isRegistered && (
           <p className="warning">
             You are not registered for this event
           </p>

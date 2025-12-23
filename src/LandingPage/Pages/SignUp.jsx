@@ -1,89 +1,50 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import AppNavbarr from "../Components/AppNavbarr";
 import "../styles/SignUp.css";
 import { supabase } from "../../Supabase/supabase-client";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const AuthBox = () => {
-  const navigatee = useNavigate();
+  const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo = location.state?.redirectTo || new URLSearchParams(location.search).get("redirect") || "/admin";
-  const [showPassword, setShowPassword] = useState(false);
+
+  const redirectTo =
+    location.state?.redirectTo ||
+    new URLSearchParams(location.search).get("redirect") ||
+    "/admin";
+
+  const [authError, setAuthError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigatee(redirectTo, { replace: true });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) {
+          navigate(redirectTo, { replace: true });
+        }
       }
-    });
+    );
 
     return () => {
       listener?.subscription?.unsubscribe();
     };
-  }, [navigatee, redirectTo]);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
-  const [authError, setAuthError] = useState(null);
-  const [loadingSignUp, setLoadingSignUp] = useState(false);
+  }, [navigate, redirectTo]);
 
-  const handleSignUpChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSignUpSubmit = async(e) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setAuthError(null);
-    setLoadingSignUp(true);
+    setLoading(true);
 
-    const signupData = {
-      name: form.name,
-      email: form.email,
-      password: form.password,
-    };
-
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
       options: {
-        data: {
-          name: form.name,
-        },
+        redirectTo: window.location.origin + redirectTo,
       },
     });
 
     if (error) {
       setAuthError(error.message);
-      setLoadingSignUp(false);
-      return;
+      setLoading(false);
     }
-
-    if (data?.session) {
-      setForm({ name: "", email: "", password: "" });
-      setLoadingSignUp(false);
-      navigatee(redirectTo);
-      return;
-    }
-
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password,
-    });
-
-    if (signInError) {
-      setAuthError(signInError.message || "Please confirm your email or sign in.");
-      setLoadingSignUp(false);
-      return;
-    }
-
-    setForm({ name: "", email: "", password: "" });
-    setLoadingSignUp(false);
-    navigatee(redirectTo);
   };
 
   return (
@@ -92,59 +53,24 @@ const AuthBox = () => {
 
       <div className="auth-container">
         <div className="auth-box">
-          <h2>Create Account</h2>
+          <h2>Continue with Google</h2>
 
-          <form onSubmit={handleSignUpSubmit}>
-            <div className="input-group">
-              <label>Name</label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleSignUpChange}
-                required
-              />
-            </div>
+          <button
+            className="auth-btn google-btn"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            {loading ? "Redirecting..." : "Sign in with Google"}
+          </button>
 
-            <div className="input-group">
-              <label>Email</label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleSignUpChange}
-                required
-              />
-            </div>
-
-            <div className="input-group">
-              <label>Password</label>
-              <div className="password-wrapper">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={form.password}
-                  onChange={handleSignUpChange}
-                  required
-                />
-                <span
-                  className="toggle-password"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </span>
-              </div>
-            </div>
-
-            {authError && (
-              <p className="auth-error" style={{ color: "salmon", marginTop: "12px" }}>
-                {authError}
-              </p>
-            )}
-            <button type="submit" className="auth-btn" disabled={loadingSignUp}>
-              {loadingSignUp ? "Creating..." : "Sign Up"}
-            </button>
-          </form>
+          {authError && (
+            <p
+              className="auth-error"
+              style={{ color: "salmon", marginTop: "14px" }}
+            >
+              {authError}
+            </p>
+          )}
         </div>
       </div>
     </>

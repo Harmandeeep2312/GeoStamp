@@ -4,10 +4,10 @@ import ViewEvents from "../Components/ViewEvents";
 import EventDetailsPopUp from "../Components/EventDetailsPopUp";
 import EventsCreationPopUp from "../Components/EventsCreationPopUp";
 import SignUp from "./SignUp";
-import '../styles/AdminDashboard.css'
+import "../styles/AdminDashboard.css";
 import AppNavbar from "../Components/AppNavbarr";
 
-    function AdminDashboard() {
+function AdminDashboard() {
     const [session, setSession] = useState(null);
     const [eventsData, setEventsData] = useState([]);
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -15,54 +15,51 @@ import AppNavbar from "../Components/AppNavbarr";
     const [createOpen, setCreateOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
+    const fetchEvents = async () => {
+        const { data, error } = await supabase.from("events").select("*");
+        if (!error) {
+        setEventsData(data || []);
+        }
+    };
+
     useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+        supabase.auth.getSession().then(({ data }) => {
         setSession(data.session);
         setLoading(false);
 
         if (data.session) {
-        fetchEvents();
-        }
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-        setSession(session);
-        setLoading(false);
-
-        if (session) {
             fetchEvents();
-        } else {
-            setEventsData([]);
         }
-        }
-    );
+        });
 
-    return () => {
+        const { data: listener } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+            setSession(session);
+            setLoading(false);
+
+            if (session) {
+            fetchEvents();
+            } else {
+            setEventsData([]);
+            }
+        }
+        );
+
+        return () => {
         listener?.subscription?.unsubscribe();
-    };
+        };
     }, []);
 
-
-const fetchEvents = async () => {
-    const { data, error } = await supabase.from("events").select("*");
-
-    if (!error) {
-    setEventsData(data || []);
-    }
-};
-
-
     if (loading) {
-    return (
+        return (
         <div style={{ color: "white", padding: "40px" }}>
-        Loading admin dashboard...
+            Loading admin dashboard...
         </div>
-    );
+        );
     }
 
     if (!session) {
-    return <SignUp />;
+        return <SignUp />;
     }
 
     const handleCardClick = (event) => {
@@ -77,36 +74,38 @@ const fetchEvents = async () => {
 
     return (
         <div className="Admin-page">
-            <AppNavbar />
+        <AppNavbar />
         <div className="Admin-wrapper">
-        <div className="admin-header">
+            <div className="admin-header">
             <h1>Admin Dashboard</h1>
             <button onClick={() => setCreateOpen(true)}>Create Event</button>
-        </div>
+            </div>
 
-        <div className="admin-events">
+            <div className="admin-events">
             {eventsData.map((event) => (
-            <ViewEvents
+                <ViewEvents
                 key={event.id}
                 event={event}
                 onClick={() => handleCardClick(event)}
-            />
+                />
             ))}
-        </div>
-        <EventsCreationPopUp
+            </div>
+
+            <EventsCreationPopUp
             open={createOpen}
             onClose={() => setCreateOpen(false)}
-        />
+            onCreated={fetchEvents}   // 🔥 KEY FIX
+            />
 
-        <EventDetailsPopUp
+            <EventDetailsPopUp
             open={detailsOpen}
             event={selectedEvent}
             onClose={() => setDetailsOpen(false)}
             onDelete={handleDeleteEvent}
-        />
+            />
         </div>
         </div>
     );
-    }
+}
 
-    export default AdminDashboard;
+export default AdminDashboard;
