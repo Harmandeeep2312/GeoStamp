@@ -5,8 +5,8 @@ function EventSummaryCard({ event, isLive, userTZ }) {
     return new Date(s); 
   };
 
-  const start = parseISODate(event.start_time);
-  const end = parseISODate(event.end_time);
+  const start = parseISODate(event.startTime);
+  const end = parseISODate(event.endTime);
 
   const timezone =
     userTZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
