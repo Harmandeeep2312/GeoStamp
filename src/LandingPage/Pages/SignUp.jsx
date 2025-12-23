@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import AppNavbarr from "../Components/AppNavbarr";
 import "../styles/SignUp.css";
 import { supabase } from "../../Supabase/supabase-client";
@@ -7,19 +7,34 @@ import { useNavigate, useLocation } from "react-router-dom";
 const AuthBox = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const redirectedRef = useRef(false);
 
-  const redirectTo =
-    location.state?.redirectTo ||
-    new URLSearchParams(location.search).get("redirect") ||
-    "/admin";
+  /* ===============================
+     STORE REDIRECT BEFORE OAUTH
+     =============================== */
+  useEffect(() => {
+    const redirect =
+      new URLSearchParams(location.search).get("redirect");
 
-  const [authError, setAuthError] = useState(null);
-  const [loading, setLoading] = useState(false);
+    if (redirect) {
+      sessionStorage.setItem("postAuthRedirect", redirect);
+    }
+  }, [location.search]);
 
+  /* ===============================
+     REDIRECT AFTER LOGIN
+     =============================== */
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (session) {
+        if (session && !redirectedRef.current) {
+          redirectedRef.current = true;
+
+          const redirectTo =
+            sessionStorage.getItem("postAuthRedirect") || "/admin";
+
+          sessionStorage.removeItem("postAuthRedirect");
+
           navigate(redirectTo, { replace: true });
         }
       }
@@ -28,23 +43,18 @@ const AuthBox = () => {
     return () => {
       listener?.subscription?.unsubscribe();
     };
-  }, [navigate, redirectTo]);
+  }, [navigate]);
 
+  /* ===============================
+     START GOOGLE OAUTH
+     =============================== */
   const handleGoogleLogin = async () => {
-    setAuthError(null);
-    setLoading(true);
-
-    const { error } = await supabase.auth.signInWithOAuth({
+    await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin + redirectTo,
+        redirectTo: window.location.origin + "/auth",
       },
     });
-
-    if (error) {
-      setAuthError(error.message);
-      setLoading(false);
-    }
   };
 
   return (
@@ -58,19 +68,9 @@ const AuthBox = () => {
           <button
             className="auth-btn google-btn"
             onClick={handleGoogleLogin}
-            disabled={loading}
           >
-            {loading ? "Redirecting..." : "Sign in with Google"}
+            Sign in with Google
           </button>
-
-          {authError && (
-            <p
-              className="auth-error"
-              style={{ color: "salmon", marginTop: "14px" }}
-            >
-              {authError}
-            </p>
-          )}
         </div>
       </div>
     </>
