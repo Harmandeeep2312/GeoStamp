@@ -13,10 +13,14 @@
     padding: 80px 20px;
 }
 
+.event-summary {
+    margin-bottom: 30px;
+}
+
 .attendance-main {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 40px;
     width: 100%;
     max-width: 420px;
 }
@@ -33,7 +37,6 @@
     box-shadow: 0 0 32px rgba(0,0,0,0.6);
 }
 
-/* highlight used when arriving from scanner */
 .attendance-action.highlight {
     animation: pulse 1.2s ease-in-out 2;
     border-color: rgba(34,211,238,0.9);
@@ -90,4 +93,23 @@
     margin-top: 18px;
     font-size: 11px;
     opacity: 0.6;
+}
+
+.attendance-action h2 {
+    margin: 0 0 6px 0;
+}
+
+.attendance-action .muted {
+    margin: 0 0 6px 0;
+    line-height: 1.4;
+}
+
+.attendance-action .warning {
+    margin: 4px 0 8px 0;
+    font-size: 0.9rem;
+}
+
+.attendance-action button {
+    margin-top: 6px;
+    align-self: flex-start;
 }

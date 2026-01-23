@@ -1,72 +1,112 @@
-import Papa from "papaparse";
 import "../styles/ParticipantsCSV.css";
+import { parseParticipantsCSV } from "../Utils/parseParticipantsCSV";
+import * as XLSX from "xlsx";
 
-function ParticipantsCSVManager({
-    csvInfo,
-    onUpload,
-    }) {
-    const handleFile = (file) => {
+function ParticipantsCSVManager({ csvInfo, onUpload }) {
+
+    const handleFile = (e) => {
+        const file = e.target.files[0];
         if (!file) return;
 
-        Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (res) => {
-            const rows = res.data;
+        const ext = file.name.split(".").pop().toLowerCase();
 
-            // Validate CSV structure
-            const requiredCols = ["name", "email", "roll_no"];
-            const isValid = requiredCols.every((col) =>
-            Object.keys(rows[0] || {}).includes(col)
+        /* =======================
+           CSV FILE HANDLING
+        ======================= */
+        if (ext === "csv") {
+            parseParticipantsCSV(
+                file,
+                (rows, filename) => {
+                    onUpload(rows, filename);
+                    e.target.value = ""; // reset input
+                },
+                (err) => {
+                    alert(err);
+                    e.target.value = "";
+                }
             );
-
-            if (!isValid) {
-            alert("CSV must contain columns: name, email, roll_no");
             return;
-            }
+        }
 
-            onUpload(rows, file.name);
-        },
-        });
+        /* =======================
+           XLSX FILE HANDLING
+        ======================= */
+        if (ext === "xlsx") {
+            const reader = new FileReader();
+
+            reader.onload = (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: "array" });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+
+                    const rows = XLSX.utils.sheet_to_json(sheet, {
+                        defval: "",
+                    });
+
+                    if (!rows.length) {
+                        alert("Excel file is empty");
+                        return;
+                    }
+
+                    onUpload(rows, file.name);
+                } catch (err) {
+                    alert("Failed to read Excel file");
+                } finally {
+                    e.target.value = ""; // reset input
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+            return;
+        }
+
+        /* =======================
+           INVALID FILE TYPE
+        ======================= */
+        alert("Only CSV or XLSX files are supported");
+        e.target.value = "";
     };
 
     return (
         <div className="csv-section">
-        <h3 className="section-title">👥 Participants List</h3>
+            <h3 className="section-title">👥 Participants List</h3>
 
-        {csvInfo ? (
-            <>
-            <p className="success-text">
-                ✅ CSV Uploaded: <b>{csvInfo}</b>
-            </p>
+            {csvInfo ? (
+                <>
+                    <p className="success-text">
+                        ✅ File Uploaded: <b>{csvInfo}</b>
+                    </p>
 
-            <label className="csv-btn">
-                CHANGE CSV
-                <input
-                type="file"
-                accept=".csv"
-                hidden
-                onChange={(e) => handleFile(e.target.files[0])}
-                />
-            </label>
-            </>
-        ) : (
-            <>
-            <p className="hint-text">
-                Upload a CSV file to restrict attendance only to listed participants.
-            </p>
+                    <label className="csv-btn">
+                        CHANGE FILE
+                        <input
+                            type="file"
+                            accept=".csv,.xlsx"
+                            hidden
+                            onChange={handleFile}
+                        />
+                    </label>
+                </>
+            ) : (
+                <>
+                    <p className="hint-text">
+                        Upload a CSV or Excel file to restrict attendance
+                        to listed participants.
+                    </p>
 
-            <label className="csv-btn">
-                UPLOAD CSV
-                <input
-                type="file"
-                accept=".csv"
-                hidden
-                onChange={(e) => handleFile(e.target.files[0])}
-                />
-            </label>
-            </>
-        )}
+                    <label className="csv-btn">
+                        UPLOAD FILE
+                        <input
+                            type="file"
+                            accept=".csv,.xlsx"
+                            hidden
+                            onChange={handleFile}
+                        />
+                    </label>
+                </>
+            )}
         </div>
     );
 }

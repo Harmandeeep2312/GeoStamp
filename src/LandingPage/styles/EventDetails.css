@@ -65,3 +65,6 @@
     background: linear-gradient(135deg, #22d3ee, #06b6d4) !important;
     color: #021017 !important;
     }
+    .icon {
+        color: white;
+    }

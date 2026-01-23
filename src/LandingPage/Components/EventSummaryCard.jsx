@@ -5,19 +5,17 @@ function EventSummaryCard({ event, isLive, userTZ }) {
     return new Date(s); 
   };
 
-  const start = parseISODate(event.start_time);
-  const end = parseISODate(event.end_time);
-
-  const timezone =
-    userTZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const start = parseISODate(event.startTime);
+  const end = parseISODate(event.endTime);
 
   const fmt = (d) => {
     if (!d || isNaN(d)) return "—";
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat("en-IN", {
       dateStyle: "medium",
       timeStyle: "short",
-      timeZone: timezone,
+      hour12: false,
+      timeZone: "Asia/Kolkata",
     }).format(d);
   };
 
@@ -28,7 +26,7 @@ function EventSummaryCard({ event, isLive, userTZ }) {
         <span>{isLive ? "LIVE EVENT" : "EVENT CLOSED"}</span>
       </div>
 
-      <h3 className="event-id">{event.name}</h3>
+      <h1 className="event-id">{event.name}</h1>
 
       <p className="event-name">{event.venue}</p>
 
@@ -37,7 +35,7 @@ function EventSummaryCard({ event, isLive, userTZ }) {
       </p>
 
       <small style={{ opacity: 0.75 }}>
-        Times shown in {timezone}
+        Times shown in Asia/Kolkata
       </small>
     </div>
   );

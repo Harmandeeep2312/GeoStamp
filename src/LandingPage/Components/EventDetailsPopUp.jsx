@@ -83,10 +83,16 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
     };
 
     const handleCSVUpload = async (rows, filename) => {
-        await supabase
+        const { error: deleteError } = await supabase
         .from("event_participants")
         .delete()
         .eq("event_id", event.id);
+        
+        if (deleteError) {
+            console.error("DELETE ERROR:", deleteError);
+            alert(deleteError.message);
+        return;
+        }
 
         const payload = rows.map((r) => ({
         event_id: event.id,
@@ -96,7 +102,12 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
         source_file: filename,
         }));
 
-        await supabase.from("event_participants").insert(payload);
+        const { data, error } = await supabase.from("event_participants").insert(payload);
+
+        if (error) {
+            alert(error.message);
+            return;
+        }
 
         setCsvName(filename);
         setCsvOpen(false);
@@ -104,13 +115,13 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontSize: 24, fontWeight: 700 }}>
+        <DialogTitle sx={{ fontSize: 24, fontWeight: 700, color: "white" }}>
             {event.name}
             <IconButton
             onClick={onClose}
             sx={{ position: "absolute", right: 12, top: 12 }}
             >
-            <CloseIcon />
+            <CloseIcon  className="icon"/>
             </IconButton>
         </DialogTitle>
 
@@ -163,14 +174,14 @@ function EventDetailsPopUp({ open, event, onClose, onDelete }) {
                 </Button>
             )}
             </div>
-
+            {csvOpen && (
             <ParticipantsCSVManager
             open={csvOpen}
             csvInfo={csvName}
             onClose={() => setCsvOpen(false)}
             onUpload={handleCSVUpload}
             />
-
+            )}
             <hr />
 
             <AttendanceTable attendance={attendance} />

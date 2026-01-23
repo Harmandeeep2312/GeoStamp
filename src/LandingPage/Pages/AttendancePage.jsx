@@ -11,19 +11,32 @@ function AttendancePage() {
   const { eventId } = useParams();
 
   const [event, setEvent] = useState(null);
+  const [participantId, setParticipantId] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Distance helper
+  const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000;
+    const toRad = (v) => (v * Math.PI) / 180;
 
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  // Load event
   useEffect(() => {
-    if (!eventId) {
-      setError("Invalid event link");
-      setLoading(false);
-      return;
-    }
+    if (!eventId) return;
 
     supabase
       .from("events")
@@ -31,39 +44,47 @@ function AttendancePage() {
       .eq("id", eventId)
       .single()
       .then(({ data, error }) => {
-        if (error || !data) {
-          setError("Event not found");
-        } else {
-          setEvent(data);
-        }
+        if (error || !data) setError("Event not found");
+        else setEvent(data);
         setLoading(false);
       });
   }, [eventId]);
 
-
+  // Load user + participant
   useEffect(() => {
     const loadUserState = async () => {
       const { data } = await supabase.auth.getUser();
-      const user = data.user;
+      const user = data?.user;
 
       if (!user || !eventId) return;
 
-
-      const { data: reg } = await supabase
+      const { data: participant } = await supabase
         .from("event_participants")
-        .select("id")
+        .select("id, user_id")
         .eq("event_id", eventId)
         .eq("email", user.email)
         .maybeSingle();
 
-      setIsRegistered(Boolean(reg));
+      if (!participant) {
+        setIsRegistered(false);
+        return;
+      }
 
+      setIsRegistered(true);
+      setParticipantId(participant.id);
+
+      if (!participant.user_id) {
+        await supabase
+          .from("event_participants")
+          .update({ user_id: user.id })
+          .eq("id", participant.id);
+      }
 
       const { data: attendance } = await supabase
         .from("attendance")
         .select("id")
         .eq("event_id", eventId)
-        .eq("user_id", user.id)
+        .eq("participant_id", participant.id)
         .maybeSingle();
 
       setAttendanceMarked(Boolean(attendance));
@@ -73,7 +94,7 @@ function AttendancePage() {
   }, [eventId]);
 
   const handleMarkAttendance = async () => {
-    if (!isRegistered) {
+    if (!isRegistered || !participantId) {
       alert("You are not registered for this event");
       return;
     }
@@ -83,39 +104,58 @@ function AttendancePage() {
       return;
     }
 
-    const { data } = await supabase.auth.getUser();
-
-    const { error } = await supabase.from("attendance").insert({
-      event_id: eventId,
-      user_id: data.user.id,
-    });
-
-    if (error) {
-      alert("Failed to mark attendance");
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported");
       return;
     }
 
-    setAttendanceMarked(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const userLat = pos.coords.latitude;
+        const userLng = pos.coords.longitude;
+
+        const distance = getDistanceInMeters(
+          userLat,
+          userLng,
+          event.latitude,
+          event.longitude
+        );
+
+        if (distance > event.radius) {
+          alert("You are outside the allowed attendance area");
+          return;
+        }
+
+        const { error } = await supabase.from("attendance").insert({
+          event_id: eventId,
+          participant_id: participantId,
+        });
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
+        setAttendanceMarked(true);
+      },
+      () => alert("Location permission denied")
+    );
   };
 
-  if (loading) {
-    return <p className="loading-text">Loading attendance…</p>;
-  }
+  if (loading) return <p className="loading-text">Loading attendance…</p>;
 
-  if (error) {
+  if (error)
     return (
       <div className="error-text card">
         <h3>Error</h3>
         <p>{error}</p>
       </div>
     );
-  }
-
 
   const now = new Date();
-  const start = new Date(event.startTime);
-  const end = new Date(event.endTime);
-  const isLive = now >= start && now <= end;
+  const isLive =
+    now >= new Date(event.startTime) &&
+    now <= new Date(event.endTime);
 
   return (
     <div className="attendance-page">
@@ -125,17 +165,15 @@ function AttendancePage() {
         <GeoFenceCard event={event} />
 
         <AttendanceActionCard
-            attendanceMarked={attendanceMarked}
-            isLive={isLive}
-            isRegistered={isRegistered}
-            onMark={handleMarkAttendance}
-            onViewEvents={() => (window.location.href = "/")}
+          attendanceMarked={attendanceMarked}
+          isLive={isLive}
+          isRegistered={isRegistered}
+          onMark={handleMarkAttendance}
+          onViewEvents={() => (window.location.href = "/")}
         />
 
         {!isRegistered && (
-          <p className="warning">
-            You are not registered for this event
-          </p>
+          <p className="warning">You are not registered for this event</p>
         )}
       </div>
     </div>

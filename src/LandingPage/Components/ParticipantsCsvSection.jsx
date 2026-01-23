@@ -1,49 +1,91 @@
-import React from "react";
-import Papa from "papaparse";
+import { parseParticipantsCSV } from "../Utils/parseParticipantsCSV";
+import * as XLSX from "xlsx";
 
 function ParticipantsCSVSection({ onParticipantsLoaded }) {
-    const handleCSVUpload = (file) => {
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
         if (!file) return;
 
-        Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-            const rows = results.data;
+        const ext = file.name.split(".").pop().toLowerCase();
 
-            // Basic validation
-            const requiredCols = ["name", "email", "roll_no"];
-            const isValid = requiredCols.every((col) =>
-            Object.keys(rows[0] || {}).includes(col)
+        /* =======================
+           CSV FILE
+        ======================= */
+        if (ext === "csv") {
+            parseParticipantsCSV(
+                file,
+                (rows, filename) => {
+                    onParticipantsLoaded(rows, filename);
+                    e.target.value = ""; // reset input
+                },
+                (err) => {
+                    alert(err);
+                    e.target.value = "";
+                }
             );
-
-            if (!isValid) {
-            alert("CSV must contain columns: name, email, roll_no");
             return;
-            }
+        }
 
-            onParticipantsLoaded(rows, file.name);
-        },
-        });
+        /* =======================
+           XLSX FILE
+        ======================= */
+        if (ext === "xlsx") {
+            const reader = new FileReader();
+
+            reader.onload = (evt) => {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: "array" });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+
+                    const rows = XLSX.utils.sheet_to_json(sheet, {
+                        defval: "",
+                    });
+
+                    if (!rows.length) {
+                        alert("Excel file is empty");
+                        return;
+                    }
+
+                    onParticipantsLoaded(rows, file.name);
+                } catch (err) {
+                    alert("Failed to read Excel file");
+                } finally {
+                    e.target.value = ""; // reset input
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+            return;
+        }
+
+        /* =======================
+           INVALID FILE TYPE
+        ======================= */
+        alert("Only CSV or XLSX files are supported");
+        e.target.value = "";
     };
 
     return (
         <div className="optional-section">
-        <h4>Participants (Optional)</h4>
+            <h4>Participants (Optional)</h4>
 
-        <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => handleCSVUpload(e.target.files[0])}
-        />
+            <input
+                type="file"
+                accept=".csv,.xlsx"
+                onChange={handleFileUpload}
+            />
 
-        <p className="hint-text">
-            Upload CSV with columns: <b>name, email, roll_no</b>
-        </p>
+            <p className="hint-text">
+                Upload CSV / Excel with columns:
+                <b> name, email, roll_no</b>
+            </p>
 
-        <p className="hint-text">
-            You can skip this and upload later from the dashboard.
-        </p>
+            <p className="hint-text">
+                You can skip this and upload later from the dashboard.
+            </p>
         </div>
     );
 }
