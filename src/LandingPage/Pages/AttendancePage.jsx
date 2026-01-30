@@ -19,6 +19,9 @@ function AttendancePage() {
 
   console.log("DEBUG eventId:", eventId);
 
+  useEffect(() => {
+  supabase.auth.signOut();
+}, []);
 
 
 
@@ -87,48 +90,62 @@ function AttendancePage() {
 }, [eventId]);
 
 
-  // Load user + participant
   useEffect(() => {
-    const loadUserState = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+  const checkParticipant = async () => {
+    const { data } = await supabase.auth.getUser();
+    const user = data?.user;
 
-      if (!user || !eventId) return;
+    // 👇 IMPORTANT: user is null until login happens
+    if (!user || !eventId) {
+      setIsRegistered(false);
+      return;
+    }
 
-      const { data: participant } = await supabase
+    const { data: participant } = await supabase
+      .from("event_participants")
+      .select("id, user_id, email")
+      .eq("event_id", eventId)
+      .or(`user_id.eq.${user.id},email.eq.${user.email}`)
+      .maybeSingle();
+
+    if (!participant) {
+      setIsRegistered(false);
+      return;
+    }
+
+    setIsRegistered(true);
+    setParticipantId(participant.id);
+
+    // Link participant → user (once)
+    if (!participant.user_id) {
+      await supabase
         .from("event_participants")
-        .select("id, user_id")
-        .eq("event_id", eventId)
-        .or(`user_id.eq.${user.id},email.eq.${user.email}`)
-        .maybeSingle();
+        .update({ user_id: user.id })
+        .eq("id", participant.id);
+    }
 
-      if (!participant) {
-        setIsRegistered(false);
-        return;
-      }
+    const { data: attendance } = await supabase
+      .from("attendance")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("participant_id", participant.id)
+      .maybeSingle();
 
-      setIsRegistered(true);
-      setParticipantId(participant.id);
+    setAttendanceMarked(Boolean(attendance));
+  };
 
-      if (!participant.user_id) {
-        await supabase
-          .from("event_participants")
-          .update({ user_id: user.id })
-          .eq("id", participant.id);
-      }
+  // 🔁 Re-run AFTER login happens
+  const { data: sub } = supabase.auth.onAuthStateChange(() => {
+    checkParticipant();
+  });
 
-      const { data: attendance } = await supabase
-        .from("attendance")
-        .select("id")
-        .eq("event_id", eventId)
-        .eq("participant_id", participant.id)
-        .maybeSingle();
+  checkParticipant();
 
-      setAttendanceMarked(Boolean(attendance));
-    };
+  return () => {
+    sub.subscription.unsubscribe();
+  };
+}, [eventId]);
 
-    loadUserState();
-  }, [eventId]);
 
   const handleMarkAttendance = async () => {
     if (!isRegistered || !participantId) {
