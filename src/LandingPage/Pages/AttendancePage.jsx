@@ -17,6 +17,24 @@ function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  console.log("DEBUG eventId:", eventId);
+
+
+    useEffect(() => {
+    supabase.auth.signOut();
+  }, []);
+
+  useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    console.log("DEBUG session:", data.session);
+    console.log(
+      "DEBUG role:",
+      data.session ? "authenticated" : "anon"
+    );
+  });
+}, []);
+
+
   // Distance helper
   const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
     const R = 6371000;
@@ -34,21 +52,42 @@ function AttendancePage() {
     return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  // Load event
-  useEffect(() => {
-    if (!eventId) return;
+  // // Load event
+  // useEffect(() => {
+  //   if (!eventId) return;
 
-    supabase
-      .from("events")
-      .select("*")
-      .eq("id", eventId)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) setError("Event not found");
-        else setEvent(data);
-        setLoading(false);
-      });
-  }, [eventId]);
+  //   supabase
+  //     .from("events")
+  //     .select("*")
+  //     .eq("id", eventId)
+  //     .single()
+  //     .then(({ data, error }) => {
+  //       if (error || !data) setError("Event not found");
+  //       else setEvent(data);
+  //       setLoading(false);
+  //     });
+  // }, [eventId]);
+
+  useEffect(() => {
+  if (!eventId) return;
+
+  supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .then(({ data, error }) => {
+      console.log("DEBUG Supabase data:", data);
+      console.log("DEBUG Supabase error:", error);
+
+      if (!data || data.length === 0) {
+        setError("Event not found (debug)");
+      } else {
+        setEvent(data[0]);
+      }
+      setLoading(false);
+    });
+}, [eventId]);
+
 
   // Load user + participant
   useEffect(() => {

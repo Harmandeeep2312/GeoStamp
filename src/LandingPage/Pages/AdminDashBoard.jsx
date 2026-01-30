@@ -15,8 +15,9 @@ function AdminDashboard() {
     const [createOpen, setCreateOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
-    const fetchEvents = async () => {
-        const { data, error } = await supabase.from("events").select("*");
+    const fetchEvents = async (userId) => {
+        if( !userId) return;
+        const { data, error } = await supabase.from("events").select("*").eq("created_by", session.user.id);
         if (!error) {
         setEventsData(data || []);
         }
@@ -24,11 +25,12 @@ function AdminDashboard() {
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data }) => {
-        setSession(data.session);
+            const session = data.session;
+        setSession(session);
         setLoading(false);
 
-        if (data.session) {
-            fetchEvents();
+        if (session?.user?.id) {
+            fetchEvents(session.user.id);
         }
         });
 
@@ -37,8 +39,8 @@ function AdminDashboard() {
             setSession(session);
             setLoading(false);
 
-            if (session) {
-            fetchEvents();
+            if (session?.user?.id) {
+            fetchEvents(session.user.id);
             } else {
             setEventsData([]);
             }
