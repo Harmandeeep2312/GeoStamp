@@ -16,11 +16,24 @@ function AdminDashboard() {
     const [detailsOpen, setDetailsOpen] = useState(false);
 
     const fetchEvents = async (userId) => {
-        if( !userId) return;
-        const { data, error } = await supabase.from("events").select("*").eq("created_by", session.user.id);
-        if (!error) {
-        setEventsData(data || []);
-        }
+    if (!userId) {
+        console.warn("fetchEvents called without userId");
+        setEventsData([]);
+        return;
+    }
+
+    const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("created_by", userId);
+
+    if (error) {
+        console.error("Fetch events error:", error);
+        setEventsData([]);
+        return;
+    }
+
+    setEventsData(data || []);
     };
 
     useEffect(() => {
@@ -31,7 +44,9 @@ function AdminDashboard() {
 
         if (session?.user?.id) {
             fetchEvents(session.user.id);
-        }
+        }else {
+            setEventsData([]);
+    }
         });
 
         const { data: listener } = supabase.auth.onAuthStateChange(
