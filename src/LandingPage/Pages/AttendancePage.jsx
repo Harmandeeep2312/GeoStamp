@@ -20,9 +20,7 @@ function AttendancePage() {
   console.log("DEBUG eventId:", eventId);
 
 
-    useEffect(() => {
-    supabase.auth.signOut();
-  }, []);
+
 
   useEffect(() => {
   supabase.auth.getSession().then(({ data }) => {
@@ -101,7 +99,7 @@ function AttendancePage() {
         .from("event_participants")
         .select("id, user_id")
         .eq("event_id", eventId)
-        .eq("email", user.email)
+        .or(`user_id.eq.${user.id},email.eq.${user.email}`)
         .maybeSingle();
 
       if (!participant) {
